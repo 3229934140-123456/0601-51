@@ -150,8 +150,8 @@ const DutyPage: React.FC = () => {
   }, [alerts, currentUser.id]);
 
   const myHandovers = useMemo(() => {
-    return handovers.filter(h => h.to === currentUser.name && h.status === 'pending');
-  }, [handovers, currentUser.name]);
+    return handovers.filter(h => h.toId === currentUser.id && h.status === 'pending');
+  }, [handovers, currentUser.id]);
 
   const myTodoCount = myAlerts.length + myHandovers.length;
 

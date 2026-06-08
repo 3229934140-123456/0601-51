@@ -72,6 +72,7 @@ export const alertList: AlertItem[] = [
     confirmTime: fmt(13, 50),
     handler: 'wangwu',
     handlerName: '王五',
+    transferCount: 1,
     processRecords: [
       { id: 'pr004', action: '创建告警', operator: 'system', operatorName: '系统', time: fmt(13, 45), toStatus: 'pending' },
       { id: 'pr005', action: '确认告警', operator: 'lisi', operatorName: '李四', time: fmt(13, 50), content: '已确认，正在清理历史日志', fromStatus: 'pending', toStatus: 'investigating' },
@@ -234,7 +235,7 @@ export const alertList: AlertItem[] = [
     processRecords: [
       { id: 'pr-h1-1', action: '创建告警', operator: 'system', operatorName: '系统', time: fmtDateOffset(-1, 10, 20), toStatus: 'pending' },
       { id: 'pr-h1-2', action: '确认告警', operator: 'zhangsan', operatorName: '张三', time: fmtDateOffset(-1, 10, 25), fromStatus: 'pending', toStatus: 'investigating', content: '正在排查，可能是慢查询导致' },
-      { id: 'pr-h1-3', action: '转派告警', operator: 'zhangsan', operatorName: '张三', time: fmtDateOffset(-1, 10, 35), content: '转DBA团队处理，需要优化SQL', toUser: 'lisi', toUserName: '李四' },
+      { id: 'pr-h1-3', action: '转派告警', operator: 'zhangsan', operatorName: '张三', time: fmtDateOffset(-1, 10, 35), content: '转DBA团队处理，需要优化SQL', transferTo: 'lisi', transferToName: '李四', fromStatus: 'investigating', toStatus: 'investigating' },
       { id: 'pr-h1-4', action: '开始排查', operator: 'lisi', operatorName: '李四', time: fmtDateOffset(-1, 10, 40), fromStatus: 'investigating', toStatus: 'investigating', content: 'DBA接手，正在分析慢查询日志' },
       { id: 'pr-h1-5', action: '彻底解决', operator: 'lisi', operatorName: '李四', time: fmtDateOffset(-1, 11, 10), fromStatus: 'investigating', toStatus: 'resolved', content: '已添加索引并优化SQL，连接池恢复正常' }
     ]
@@ -356,7 +357,7 @@ export const alertList: AlertItem[] = [
     processRecords: [
       { id: 'pr-h6-1', action: '创建告警', operator: 'system', operatorName: '系统', time: fmtDateOffset(-3, 19, 10), toStatus: 'pending' },
       { id: 'pr-h6-2', action: '确认告警', operator: 'zhangsan', operatorName: '张三', time: fmtDateOffset(-3, 19, 15), fromStatus: 'pending', toStatus: 'investigating', content: '检查支付网关连接' },
-      { id: 'pr-h6-3', action: '转派告警', operator: 'zhangsan', operatorName: '张三', time: fmtDateOffset(-3, 19, 30), content: '第三方支付渠道问题，转商务团队协调', toUser: 'zhaoliu', toUserName: '赵六' },
+      { id: 'pr-h6-3', action: '转派告警', operator: 'zhangsan', operatorName: '张三', time: fmtDateOffset(-3, 19, 30), content: '第三方支付渠道问题，转商务团队协调', transferTo: 'zhaoliu', transferToName: '赵六', fromStatus: 'investigating', toStatus: 'investigating' },
       { id: 'pr-h6-4', action: '等待外部支持', operator: 'zhaoliu', operatorName: '赵六', time: fmtDateOffset(-3, 19, 35), fromStatus: 'investigating', toStatus: 'waiting_external', content: '正在联系支付渠道技术支持' },
       { id: 'pr-h6-5', action: '彻底解决', operator: 'zhaoliu', operatorName: '赵六', time: fmtDateOffset(-3, 20, 30), fromStatus: 'waiting_external', toStatus: 'resolved', content: '支付渠道已恢复，超时率降至0.1%' }
     ]

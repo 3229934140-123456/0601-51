@@ -31,10 +31,16 @@ const AlertPage: React.FC = () => {
   const [progressType, setProgressType] = useState<AlertStatus>('investigating');
   const [progressContent, setProgressContent] = useState('');
   const [showHandoverModal, setShowHandoverModal] = useState(false);
-  const [handoverTo, setHandoverTo] = useState('');
+  const [handoverToId, setHandoverToId] = useState('');
   const [handoverNextAction, setHandoverNextAction] = useState('');
 
-  const handlePersons = ['张三', '李四', '王五', '赵六', '孙七'];
+  const personOptions = [
+    { id: 'zhangsan', name: '张三' },
+    { id: 'lisi', name: '李四' },
+    { id: 'wangwu', name: '王五' },
+    { id: 'zhaoliu', name: '赵六' },
+    { id: 'sunqi', name: '孙七' }
+  ];
 
   const filteredAlerts = useMemo(() => {
     return alerts.filter(alert => {
@@ -128,7 +134,8 @@ const AlertPage: React.FC = () => {
       Taro.showToast({ title: '请选择转派人', icon: 'none' });
       return;
     }
-    transferAlert(currentAlert.id, selectedPerson, transferRemark);
+    const person = personOptions.find(p => p.id === selectedPerson);
+    transferAlert(currentAlert.id, selectedPerson, person?.name || selectedPerson, transferRemark);
     setShowTransferModal(false);
     Taro.showToast({ title: '转派成功', icon: 'success' });
   };
@@ -156,14 +163,14 @@ const AlertPage: React.FC = () => {
     const alert = alerts.find(a => a.id === id);
     if (!alert) return;
     setCurrentAlert(alert);
-    setHandoverTo('');
+    setHandoverToId('');
     setHandoverNextAction('');
     setShowHandoverModal(true);
   };
 
   const submitHandover = () => {
     if (!currentAlert) return;
-    if (!handoverTo) {
+    if (!handoverToId) {
       Taro.showToast({ title: '请选择接收人', icon: 'none' });
       return;
     }
@@ -171,6 +178,8 @@ const AlertPage: React.FC = () => {
       Taro.showToast({ title: '请填写下一步动作', icon: 'none' });
       return;
     }
+
+    const receiver = personOptions.find(p => p.id === handoverToId);
 
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -184,8 +193,8 @@ const AlertPage: React.FC = () => {
       createTime: timeStr,
       from: '我',
       fromId: 'currentUser',
-      to: handoverTo,
-      toId: handoverTo,
+      to: receiver?.name || handoverToId,
+      toId: handoverToId,
       sourceAlertId: currentAlert.id,
       sourceAlertTitle: currentAlert.title,
       sourceAlertLevel: currentAlert.level,
@@ -378,13 +387,13 @@ const AlertPage: React.FC = () => {
               <View className={styles.formGroup} style={{ marginTop: '32rpx' }}>
                 <Text className={styles.formLabel}>选择转派人</Text>
                 <View className={styles.personList}>
-                  {handlePersons.map(person => (
+                  {personOptions.map(person => (
                     <View
-                      key={person}
-                      className={classnames(styles.personItem, { [styles.selected]: selectedPerson === person })}
-                      onClick={() => setSelectedPerson(person)}
+                      key={person.id}
+                      className={classnames(styles.personItem, { [styles.selected]: selectedPerson === person.id })}
+                      onClick={() => setSelectedPerson(person.id)}
                     >
-                      {person}
+                      {person.name}
                     </View>
                   ))}
                 </View>
@@ -475,13 +484,13 @@ const AlertPage: React.FC = () => {
               <View className={styles.formGroup} style={{ marginTop: '32rpx' }}>
                 <Text className={styles.formLabel}>接收人</Text>
                 <View className={styles.personList}>
-                  {handlePersons.map(person => (
+                  {personOptions.map(person => (
                     <View
-                      key={person}
-                      className={classnames(styles.personItem, { [styles.selected]: handoverTo === person })}
-                      onClick={() => setHandoverTo(person)}
+                      key={person.id}
+                      className={classnames(styles.personItem, { [styles.selected]: handoverToId === person.id })}
+                      onClick={() => setHandoverToId(person.id)}
                     >
-                      {person}
+                      {person.name}
                     </View>
                   ))}
                 </View>
@@ -702,16 +711,26 @@ const AlertPage: React.FC = () => {
             <View className={styles.formGroup} style={{ marginTop: '32rpx' }}>
               <Text className={styles.formLabel}>选择转派人</Text>
               <View className={styles.personList}>
-                {handlePersons.map(person => (
+                {personOptions.map(person => (
                   <View
-                    key={person}
-                    className={classnames(styles.personItem, { [styles.selected]: selectedPerson === person })}
-                    onClick={() => setSelectedPerson(person)}
+                    key={person.id}
+                    className={classnames(styles.personItem, { [styles.selected]: selectedPerson === person.id })}
+                    onClick={() => setSelectedPerson(person.id)}
                   >
-                    {person}
+                    {person.name}
                   </View>
                 ))}
               </View>
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>转派说明</Text>
+              <Textarea
+                className={styles.formTextarea}
+                placeholder="请输入转派说明（选填）"
+                value={transferRemark}
+                onInput={(e) => setTransferRemark(e.detail.value)}
+              />
             </View>
 
             <View className={styles.modalActions}>

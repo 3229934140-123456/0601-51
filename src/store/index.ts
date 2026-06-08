@@ -27,7 +27,7 @@ interface AppState {
   services: ServiceItem[];
 
   confirmAlert: (alertId: string, content: string) => void;
-  transferAlert: (alertId: string, transferToName: string, content?: string) => void;
+  transferAlert: (alertId: string, transferToId: string, transferToName: string, content?: string) => void;
   resolveAlert: (alertId: string, content: string) => void;
   addProcessRecord: (alertId: string, record: ProcessRecord) => void;
   updateAlertStatus: (alertId: string, status: AlertItem['status'], action: string, content?: string) => void;
@@ -149,7 +149,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log('[Store] 更新告警状态:', alertId, '→', status);
   },
 
-  transferAlert: (alertId, transferToName, content = '') => {
+  transferAlert: (alertId, transferToId, transferToName, content = '') => {
     const now = formatTime(new Date());
     
     set(state => {
@@ -162,7 +162,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         operator: 'currentUser',
         operatorName: '我',
         time: now,
-        transferTo: transferToName.toLowerCase(),
+        transferTo: transferToId,
         transferToName,
         content,
         fromStatus: alert.status,
@@ -172,12 +172,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       return {
         alerts: state.alerts.map(a =>
           a.id === alertId
-            ? { ...a, handler: transferToName.toLowerCase(), handlerName: transferToName, processRecords: [...a.processRecords, record] }
+            ? { 
+                ...a, 
+                handler: transferToId, 
+                handlerName: transferToName, 
+                transferCount: (a.transferCount || 0) + 1,
+                processRecords: [...a.processRecords, record] 
+              }
             : a
         )
       };
     });
-    console.log('[Store] 转派告警:', alertId, '给', transferToName);
+    console.log('[Store] 转派告警:', alertId, '给', transferToName, `(${transferToId})`);
   },
 
   resolveAlert: (alertId, content) => {

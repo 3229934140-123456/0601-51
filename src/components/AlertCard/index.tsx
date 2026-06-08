@@ -17,6 +17,11 @@ interface AlertCardProps {
 const AlertCard: React.FC<AlertCardProps> = ({ alert, onConfirm, onTransfer, onResolve, onProgress }) => {
   const isActive = alert.status === 'pending' || alert.status === 'investigating' || alert.status === 'waiting_external' || alert.status === 'temp_restored';
 
+  const handleAction = (e: any, action?: () => void) => {
+    e.stopPropagation();
+    action?.();
+  };
+
   return (
     <View className={classnames(styles.alertCard, styles[alert.level.toLowerCase()])}>
       <View className={styles.header}>
@@ -48,13 +53,13 @@ const AlertCard: React.FC<AlertCardProps> = ({ alert, onConfirm, onTransfer, onR
             <>
               <Button
                 className={classnames(styles.actionBtn, styles.default)}
-                onClick={() => onTransfer?.(alert.id)}
+                onClick={(e) => handleAction(e, () => onTransfer?.(alert.id))}
               >
                 转派
               </Button>
               <Button
                 className={classnames(styles.actionBtn, styles.primary)}
-                onClick={() => onConfirm?.(alert.id)}
+                onClick={(e) => handleAction(e, () => onConfirm?.(alert.id))}
               >
                 确认
               </Button>
@@ -64,13 +69,13 @@ const AlertCard: React.FC<AlertCardProps> = ({ alert, onConfirm, onTransfer, onR
             <>
               <Button
                 className={classnames(styles.actionBtn, styles.default)}
-                onClick={() => onTransfer?.(alert.id)}
+                onClick={(e) => handleAction(e, () => onTransfer?.(alert.id))}
               >
                 转派
               </Button>
               <Button
                 className={classnames(styles.actionBtn, styles.primary)}
-                onClick={() => onProgress?.(alert.id)}
+                onClick={(e) => handleAction(e, () => onProgress?.(alert.id))}
               >
                 进展
               </Button>

@@ -2,12 +2,12 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, Button, Canvas } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import classnames from 'classnames';
-import { useStore } from '@/store';
+import { useAppStore } from '@/store';
 import { statusLabelMap } from '@/data/alert';
 import styles from './index.module.scss';
 
 const ReviewPage: React.FC = () => {
-  const { alerts } = useStore();
+  const { alerts } = useAppStore();
   const [timeRange, setTimeRange] = useState<'week' | 'month'>('week');
   const [showSummary, setShowSummary] = useState(false);
   const canvasRef = useRef<any>(null);
