@@ -1,0 +1,418 @@
+@use '@/styles/variables.scss' as *;
+
+.pageContainer {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding-bottom: 120rpx;
+}
+
+.tabBar {
+  display: flex;
+  background: $color-bg-card;
+  padding: $spacing-sm $spacing-lg;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: $shadow-float;
+
+  .tabItem {
+    flex: 1;
+    height: 72rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: $radius-md;
+    font-size: $font-size-md;
+    color: $color-text-secondary;
+    transition: all $transition-fast;
+
+    &.active {
+      background: $color-primary;
+      color: $color-text-white;
+      font-weight: $font-weight-medium;
+    }
+  }
+}
+
+.content {
+  padding: $spacing-lg;
+}
+
+.currentDuty {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-lg;
+  box-shadow: $shadow-card;
+
+  .dutyLabel {
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    margin-bottom: $spacing-sm;
+  }
+
+  .dutyInfo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .dutyPerson {
+      display: flex;
+      align-items: center;
+
+      .avatar {
+        width: 96rpx;
+        height: 96rpx;
+        border-radius: 50%;
+        background: $color-primary-bg;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: $font-size-xl;
+        color: $color-primary;
+        font-weight: $font-weight-semibold;
+        margin-right: $spacing-md;
+      }
+
+      .personInfo {
+        .name {
+          font-size: $font-size-lg;
+          font-weight: $font-weight-semibold;
+          color: $color-text-primary;
+          margin-bottom: 8rpx;
+        }
+
+        .shift {
+          font-size: $font-size-sm;
+          color: $color-text-tertiary;
+        }
+      }
+    }
+
+    .contactBtn {
+      @include button-reset;
+      height: $button-height-sm;
+      padding: 0 $spacing-lg;
+      border-radius: $radius-button;
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      background: $color-primary-bg;
+      color: $color-primary;
+      transition: all $transition-fast;
+
+      &:active {
+        opacity: 0.9;
+        transform: scale(0.98);
+      }
+    }
+  }
+}
+
+.sectionTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .titleLeft {
+    display: flex;
+    align-items: center;
+
+    &::before {
+      content: '';
+      display: inline-block;
+      width: 8rpx;
+      height: 32rpx;
+      background: $color-primary;
+      border-radius: $radius-xs;
+      margin-right: $spacing-sm;
+    }
+  }
+
+  .more {
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+  }
+}
+
+.dutyCalendar {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-lg;
+  box-shadow: $shadow-card;
+
+  .calendarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $spacing-md;
+
+    .monthLabel {
+      font-size: $font-size-md;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+    }
+
+    .navBtn {
+      width: 56rpx;
+      height: 56rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: $radius-sm;
+      background: $color-bg-page;
+      color: $color-text-secondary;
+      font-size: $font-size-md;
+    }
+  }
+
+  .weekDays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: $spacing-sm;
+
+    .weekDay {
+      text-align: center;
+      font-size: $font-size-xs;
+      color: $color-text-tertiary;
+      padding: $spacing-sm 0;
+    }
+  }
+
+  .daysGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8rpx;
+
+    .dayCell {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: $radius-sm;
+      font-size: $font-size-sm;
+      color: $color-text-primary;
+      position: relative;
+
+      &.empty {
+        visibility: hidden;
+      }
+
+      &.today {
+        background: $color-primary;
+        color: $color-text-white;
+        font-weight: $font-weight-medium;
+      }
+
+      &.hasDuty {
+        .dutyDot {
+          position: absolute;
+          bottom: 8rpx;
+          width: 8rpx;
+          height: 8rpx;
+          border-radius: 50%;
+          background: $color-warning;
+        }
+
+        &.today .dutyDot {
+          background: $color-text-white;
+        }
+      }
+
+      .dayNum {
+        font-size: $font-size-md;
+      }
+
+      .dutyName {
+        font-size: 20rpx;
+        margin-top: 2rpx;
+        opacity: 0.8;
+      }
+    }
+  }
+}
+
+.dutyList {
+  margin-bottom: $spacing-lg;
+
+  .dutyItem {
+    background: $color-bg-card;
+    border-radius: $radius-lg;
+    padding: $spacing-md $spacing-lg;
+    margin-bottom: $spacing-sm;
+    box-shadow: $shadow-card;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .dateInfo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 100rpx;
+      padding-right: $spacing-md;
+      border-right: 1rpx solid $color-divider;
+
+      .date {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+        color: $color-text-primary;
+      }
+
+      .weekday {
+        font-size: $font-size-xs;
+        color: $color-text-tertiary;
+      }
+    }
+
+    .shiftInfo {
+      flex: 1;
+      padding-left: $spacing-md;
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-sm;
+
+      .shiftRow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        .shiftLabel {
+          font-size: $font-size-sm;
+          color: $color-text-tertiary;
+          min-width: 60rpx;
+        }
+
+        .person {
+          flex: 1;
+          font-size: $font-size-sm;
+          color: $color-text-secondary;
+          text-align: right;
+        }
+      }
+    }
+  }
+}
+
+.handoverSection {
+  .handoverCard {
+    background: $color-bg-card;
+    border-radius: $radius-lg;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-md;
+    box-shadow: $shadow-card;
+
+    &.pending {
+      border-left: 6rpx solid $color-warning;
+    }
+
+    &.done {
+      border-left: 6rpx solid $color-success;
+    }
+
+    .cardHeader {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: $spacing-sm;
+
+      .cardTitle {
+        flex: 1;
+        font-size: $font-size-md;
+        font-weight: $font-weight-semibold;
+        color: $color-text-primary;
+        margin-right: $spacing-sm;
+        @include text-ellipsis;
+      }
+    }
+
+    .cardContent {
+      font-size: $font-size-sm;
+      color: $color-text-secondary;
+      line-height: 1.6;
+      margin-bottom: $spacing-md;
+      @include text-ellipsis-multi(2);
+    }
+
+    .cardFooter {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      .fromInfo {
+        font-size: $font-size-xs;
+        color: $color-text-tertiary;
+      }
+
+      .time {
+        font-size: $font-size-xs;
+        color: $color-text-tertiary;
+      }
+    }
+
+    .actionBtn {
+      @include button-reset;
+      height: 56rpx;
+      padding: 0 $spacing-md;
+      border-radius: $radius-button;
+      font-size: $font-size-xs;
+      font-weight: $font-weight-medium;
+      background: $color-primary;
+      color: $color-text-white;
+      transition: all $transition-fast;
+
+      &.done {
+        background: $color-success-bg;
+        color: $color-success;
+      }
+
+      &:active {
+        opacity: 0.9;
+        transform: scale(0.98);
+      }
+    }
+  }
+}
+
+.emptyState {
+  text-align: center;
+  padding: 80rpx 0;
+
+  .emptyIcon {
+    font-size: 80rpx;
+    margin-bottom: $spacing-md;
+    opacity: 0.5;
+  }
+
+  .emptyText {
+    font-size: $font-size-md;
+    color: $color-text-tertiary;
+  }
+}
+
+.addFab {
+  position: fixed;
+  right: $spacing-lg;
+  bottom: 120rpx;
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background: $color-primary;
+  color: $color-text-white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48rpx;
+  box-shadow: $shadow-card-hover;
+  z-index: 100;
+  transition: all $transition-fast;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}

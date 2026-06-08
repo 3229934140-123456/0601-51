@@ -1,0 +1,77 @@
+@use '@/styles/variables.scss' as *;
+
+.statusTag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx 16rpx;
+  border-radius: $radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  white-space: nowrap;
+  line-height: 1.4;
+
+  &.p0 {
+    background-color: $alert-p0-bg;
+    color: $alert-p0;
+  }
+
+  &.p1 {
+    background-color: $alert-p1-bg;
+    color: $alert-p1;
+  }
+
+  &.p2 {
+    background-color: $alert-p2-bg;
+    color: $color-warning;
+  }
+
+  &.p3 {
+    background-color: $alert-p3-bg;
+    color: $alert-p3;
+  }
+
+  &.p4 {
+    background-color: $alert-p4-bg;
+    color: $alert-p4;
+  }
+
+  &.online,
+  &.normal,
+  &.resolved,
+  &.completed,
+  &.pass {
+    background-color: $color-success-bg;
+    color: $color-success;
+  }
+
+  &.offline,
+  &.error,
+  &.fail {
+    background-color: $color-error-bg;
+    color: $color-error;
+  }
+
+  &.warning,
+  &.processing {
+    background-color: $color-warning-bg;
+    color: $color-warning;
+  }
+
+  &.pending,
+  &.confirmed,
+  &.maintenance {
+    background-color: $color-info-bg;
+    color: $color-primary;
+  }
+
+  &.closed {
+    background-color: $color-bg-hover;
+    color: $color-text-tertiary;
+  }
+
+  &.done {
+    background-color: $color-success-bg;
+    color: $color-success;
+  }
+}

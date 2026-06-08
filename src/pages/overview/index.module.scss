@@ -1,0 +1,243 @@
+@use '@/styles/variables.scss' as *;
+
+.pageContainer {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding-bottom: 120rpx;
+}
+
+.header {
+  background: $color-bg-header;
+  padding: $spacing-xl $spacing-lg 80rpx;
+  color: $color-text-white;
+  position: relative;
+
+  .greeting {
+    font-size: $font-size-md;
+    opacity: 0.9;
+    margin-bottom: $spacing-xs;
+  }
+
+  .title {
+    font-size: $font-size-xxl;
+    font-weight: $font-weight-bold;
+    margin-bottom: $spacing-lg;
+  }
+
+  .healthCard {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: $radius-lg;
+    padding: $spacing-lg;
+    backdrop-filter: blur(10rpx);
+
+    .healthRow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: $spacing-md;
+
+      .healthLabel {
+        font-size: $font-size-md;
+        opacity: 0.9;
+      }
+
+      .healthLevel {
+        font-size: $font-size-md;
+        font-weight: $font-weight-semibold;
+        background: rgba(255, 255, 255, 0.25);
+        padding: 8rpx 20rpx;
+        border-radius: $radius-round;
+      }
+    }
+
+    .healthScore {
+      font-size: 80rpx;
+      font-weight: $font-weight-bold;
+      line-height: 1;
+      margin-bottom: $spacing-sm;
+
+      .unit {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-normal;
+        opacity: 0.8;
+      }
+    }
+
+    .healthDesc {
+      font-size: $font-size-sm;
+      opacity: 0.8;
+    }
+  }
+}
+
+.content {
+  padding: 0 $spacing-lg;
+  margin-top: -40rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.quickStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $spacing-md;
+  margin-bottom: $spacing-xl;
+
+  .statItem {
+    background: $color-bg-card;
+    border-radius: $radius-lg;
+    padding: $spacing-md;
+    text-align: center;
+    box-shadow: $shadow-card;
+
+    .statValue {
+      font-size: $font-size-xl;
+      font-weight: $font-weight-bold;
+      color: $color-text-primary;
+      margin-bottom: 8rpx;
+
+      &.alert { color: $color-error; }
+      &.success { color: $color-success; }
+      &.warning { color: $color-warning; }
+    }
+
+    .statLabel {
+      font-size: $font-size-xs;
+      color: $color-text-tertiary;
+    }
+  }
+}
+
+.section {
+  margin-bottom: $spacing-xl;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+
+  .sectionTitle {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
+    display: flex;
+    align-items: center;
+
+    &::before {
+      content: '';
+      display: inline-block;
+      width: 8rpx;
+      height: 32rpx;
+      background: $color-primary;
+      border-radius: $radius-xs;
+      margin-right: $spacing-sm;
+    }
+  }
+
+  .sectionMore {
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+  }
+}
+
+.eventList {
+  .eventCard {
+    background: $color-bg-card;
+    border-radius: $radius-lg;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-md;
+    box-shadow: $shadow-card;
+    position: relative;
+
+    &.topEvent {
+      border-left: 6rpx solid $color-error;
+      background: linear-gradient(to right, rgba(245, 63, 63, 0.03), $color-bg-card);
+    }
+
+    .eventHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: $spacing-sm;
+
+      .eventTitle {
+        flex: 1;
+        font-size: $font-size-md;
+        font-weight: $font-weight-semibold;
+        color: $color-text-primary;
+        @include text-ellipsis;
+        margin-right: $spacing-sm;
+      }
+    }
+
+    .eventContent {
+      font-size: $font-size-sm;
+      color: $color-text-secondary;
+      line-height: 1.6;
+      margin-bottom: $spacing-sm;
+      @include text-ellipsis-multi(2);
+    }
+
+    .eventFooter {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      .eventTime {
+        font-size: $font-size-xs;
+        color: $color-text-tertiary;
+      }
+
+      .topBadge {
+        font-size: $font-size-xs;
+        color: $color-error;
+        background: $alert-p0-bg;
+        padding: 4rpx 12rpx;
+        border-radius: $radius-xs;
+        font-weight: $font-weight-medium;
+      }
+    }
+  }
+}
+
+.quickEntry {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $spacing-md;
+
+  .entryItem {
+    background: $color-bg-card;
+    border-radius: $radius-lg;
+    padding: $spacing-md $spacing-sm;
+    text-align: center;
+    box-shadow: $shadow-card;
+    transition: all $transition-fast;
+
+    &:active {
+      transform: scale(0.96);
+    }
+
+    .entryIcon {
+      width: 80rpx;
+      height: 80rpx;
+      margin: 0 auto $spacing-sm;
+      border-radius: $radius-md;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40rpx;
+
+      &.service { background: $color-primary-bg; color: $color-primary; }
+      &.review { background: $color-success-bg; color: $color-success; }
+      &.report { background: $color-warning-bg; color: $color-warning; }
+      &.setting { background: $color-info-bg; color: $color-primary; }
+    }
+
+    .entryLabel {
+      font-size: $font-size-sm;
+      color: $color-text-secondary;
+    }
+  }
+}

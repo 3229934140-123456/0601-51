@@ -1,0 +1,43 @@
+@use '@/styles/variables.scss' as *;
+
+.statCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  display: flex;
+  flex-direction: column;
+
+  .label {
+    font-size: $font-size-sm;
+    color: $color-text-secondary;
+    margin-bottom: $spacing-sm;
+  }
+
+  .value {
+    font-size: $font-size-xxl;
+    font-weight: $font-weight-bold;
+    color: $color-text-primary;
+    line-height: 1.2;
+  }
+
+  .unit {
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+    margin-left: 4rpx;
+    font-weight: $font-weight-normal;
+  }
+
+  .trend {
+    margin-top: $spacing-sm;
+    font-size: $font-size-xs;
+
+    &.up {
+      color: $color-error;
+    }
+
+    &.down {
+      color: $color-success;
+    }
+  }
+}
