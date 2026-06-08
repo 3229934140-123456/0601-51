@@ -491,3 +491,100 @@
     }
   }
 }
+
+.formModal {
+  width: 90%;
+  max-width: 640rpx;
+  max-height: 80vh;
+  overflow-y: auto;
+  text-align: left;
+
+  .modalTitle {
+    text-align: center;
+  }
+
+  .modalDesc {
+    text-align: center;
+    margin-bottom: $spacing-lg;
+  }
+}
+
+.formGroup {
+  margin-bottom: $spacing-lg;
+
+  .formLabel {
+    display: block;
+    font-size: $font-size-sm;
+    color: $color-text-secondary;
+    margin-bottom: $spacing-sm;
+    font-weight: $font-weight-medium;
+  }
+
+  .formInput {
+    width: 100%;
+    height: 72rpx;
+    padding: 0 $spacing-md;
+    background: $color-bg-page;
+    border: 1rpx solid $color-divider;
+    border-radius: $radius-md;
+    font-size: $font-size-md;
+    color: $color-text-primary;
+    box-sizing: border-box;
+  }
+
+  .formSelect {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-sm;
+
+    .formOption {
+      padding: $spacing-sm $spacing-md;
+      background: $color-bg-page;
+      border: 1rpx solid $color-divider;
+      border-radius: $radius-md;
+      font-size: $font-size-sm;
+      color: $color-text-secondary;
+      transition: all $transition-fast;
+
+      &.active {
+        background: $color-primary-bg;
+        border-color: $color-primary;
+        color: $color-primary;
+      }
+
+      &:active {
+        opacity: 0.8;
+      }
+    }
+  }
+
+  .timeInputRow {
+    display: flex;
+    gap: $spacing-sm;
+
+    .dateInput {
+      flex: 2;
+      height: 72rpx;
+      padding: 0 $spacing-md;
+      background: $color-bg-page;
+      border: 1rpx solid $color-divider;
+      border-radius: $radius-md;
+      font-size: $font-size-md;
+      color: $color-text-primary;
+      box-sizing: border-box;
+    }
+
+    .timeInput {
+      flex: 1;
+      height: 72rpx;
+      padding: 0 $spacing-md;
+      background: $color-bg-page;
+      border: 1rpx solid $color-divider;
+      border-radius: $radius-md;
+      font-size: $font-size-md;
+      color: $color-text-primary;
+      text-align: center;
+      box-sizing: border-box;
+    }
+  }
+}

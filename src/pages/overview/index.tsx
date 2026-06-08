@@ -1,13 +1,35 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import classnames from 'classnames';
-import { overviewData } from '@/data/overview';
+import { useAppStore } from '@/store';
 import StatusTag from '@/components/StatusTag';
 import styles from './index.module.scss';
 
 const OverviewPage: React.FC = () => {
+  const { importantEvents, getHealthScore, getAlertStats, getHostStats, getServiceStats } = useAppStore();
   const [refreshing, setRefreshing] = useState(false);
+
+  const healthScore = useMemo(() => getHealthScore(), [getHealthScore]);
+  const alertStats = useMemo(() => getAlertStats(), [getAlertStats]);
+  const hostStats = useMemo(() => getHostStats(), [getHostStats]);
+  const serviceStats = useMemo(() => getServiceStats(), [getServiceStats]);
+
+  const healthLevel = useMemo(() => {
+    if (healthScore >= 90) return '优秀';
+    if (healthScore >= 80) return '良好';
+    if (healthScore >= 70) return '一般';
+    if (healthScore >= 60) return '警告';
+    return '危险';
+  }, [healthScore]);
+
+  const healthDesc = useMemo(() => {
+    if (healthScore >= 90) return '系统整体运行良好，一切正常';
+    if (healthScore >= 80) return '系统整体运行稳定，少量告警需关注';
+    if (healthScore >= 70) return '系统存在一定风险，请及时处理告警';
+    if (healthScore >= 60) return '系统告警较多，建议优先处理重要告警';
+    return '系统风险较高，请立即处理告警';
+  }, [healthScore]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
@@ -47,13 +69,13 @@ const OverviewPage: React.FC = () => {
         <View className={styles.healthCard}>
           <View className={styles.healthRow}>
             <Text className={styles.healthLabel}>系统健康分</Text>
-            <Text className={styles.healthLevel}>{overviewData.healthLevel}</Text>
+            <Text className={styles.healthLevel}>{healthLevel}</Text>
           </View>
-          <View className={styles.healthScore} style={{ color: getHealthColor(overviewData.healthScore) }}>
-            {overviewData.healthScore}
+          <View className={styles.healthScore} style={{ color: getHealthColor(healthScore) }}>
+            {healthScore}
             <Text className={styles.unit}>/100</Text>
           </View>
-          <Text className={styles.healthDesc}>系统整体运行良好，少量告警需关注</Text>
+          <Text className={styles.healthDesc}>{healthDesc}</Text>
         </View>
       </View>
 
@@ -61,19 +83,19 @@ const OverviewPage: React.FC = () => {
         <View className={styles.quickStats}>
           <View className={styles.statItem} onClick={() => goToTab('/pages/alert/index')}>
             <Text className={classnames(styles.statValue, styles.alert)}>
-              {overviewData.alertCount.pending}
+              {alertStats.pending}
             </Text>
             <Text className={styles.statLabel}>待处理告警</Text>
           </View>
           <View className={styles.statItem} onClick={() => goToTab('/pages/host/index')}>
             <Text className={classnames(styles.statValue, styles.success)}>
-              {overviewData.hostCount.online}
+              {hostStats.online}
             </Text>
             <Text className={styles.statLabel}>在线主机</Text>
           </View>
           <View className={styles.statItem} onClick={() => goToPage('/pages/service/index')}>
             <Text className={classnames(styles.statValue, styles.warning)}>
-              {overviewData.serviceCount.abnormal}
+              {serviceStats.abnormal}
             </Text>
             <Text className={styles.statLabel}>异常服务</Text>
           </View>
@@ -87,23 +109,29 @@ const OverviewPage: React.FC = () => {
             </Text>
           </View>
           <View className={styles.eventList}>
-            {overviewData.importantEvents.map(event => (
-              <View
-                key={event.id}
-                className={classnames(styles.eventCard, { [styles.topEvent]: event.isTop })}
-                onClick={() => goToTab('/pages/alert/index')}
-              >
-                <View className={styles.eventHeader}>
-                  <Text className={styles.eventTitle}>{event.title}</Text>
-                  <StatusTag type={event.level.toLowerCase()} text={event.level} />
+            {importantEvents.length > 0 ? (
+              importantEvents.map(event => (
+                <View
+                  key={event.id}
+                  className={classnames(styles.eventCard, { [styles.topEvent]: event.isTop })}
+                  onClick={() => goToTab('/pages/alert/index')}
+                >
+                  <View className={styles.eventHeader}>
+                    <Text className={styles.eventTitle}>{event.title}</Text>
+                    <StatusTag type={event.level.toLowerCase()} text={event.level} />
+                  </View>
+                  <View className={styles.eventContent}>{event.content}</View>
+                  <View className={styles.eventFooter}>
+                    <Text className={styles.eventTime}>{event.time}</Text>
+                    {event.isTop && <Text className={styles.topBadge}>置顶</Text>}
+                  </View>
                 </View>
-                <View className={styles.eventContent}>{event.content}</View>
-                <View className={styles.eventFooter}>
-                  <Text className={styles.eventTime}>{event.time}</Text>
-                  {event.isTop && <Text className={styles.topBadge}>置顶</Text>}
-                </View>
+              ))
+            ) : (
+              <View className={styles.emptyEvents}>
+                <Text className={styles.emptyText}>暂无重要事件</Text>
               </View>
-            ))}
+            )}
           </View>
         </View>
 
@@ -137,15 +165,15 @@ const OverviewPage: React.FC = () => {
           </View>
           <View className={styles.quickStats}>
             <View className={styles.statItem}>
-              <Text className={styles.statValue}>{overviewData.alertCount.today}</Text>
+              <Text className={styles.statValue}>{alertStats.today}</Text>
               <Text className={styles.statLabel}>今日告警</Text>
             </View>
             <View className={styles.statItem}>
-              <Text className={styles.statValue}>{overviewData.alertCount.total}</Text>
+              <Text className={styles.statValue}>{alertStats.total}</Text>
               <Text className={styles.statLabel}>告警总数</Text>
             </View>
             <View className={styles.statItem}>
-              <Text className={styles.statValue}>{overviewData.hostCount.total}</Text>
+              <Text className={styles.statValue}>{hostStats.total}</Text>
               <Text className={styles.statLabel}>主机总数</Text>
             </View>
           </View>

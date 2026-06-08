@@ -1,18 +1,27 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, Button } from '@tarojs/components';
+import { View, Text, ScrollView, Button, Input } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import classnames from 'classnames';
 import type { DutyRecord, HandoverItem } from '@/types';
-import { dutyList, handoverList as initialHandoverList } from '@/data/duty';
+import { useAppStore } from '@/store';
+import { dutyList } from '@/data/duty';
 import StatusTag from '@/components/StatusTag';
 import styles from './index.module.scss';
 
 const DutyPage: React.FC = () => {
+  const { handovers, addHandover, completeHandover } = useAppStore();
   const [activeTab, setActiveTab] = useState<'schedule' | 'handover'>('schedule');
   const [dutyRecords] = useState<DutyRecord[]>(dutyList);
-  const [handoverList, setHandoverList] = useState<HandoverItem[]>(initialHandoverList);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    to: '张三',
+    toId: 'zhangsan'
+  });
 
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -27,7 +36,7 @@ const DutyPage: React.FC = () => {
 
   const currentDuty = useMemo(() => {
     const todayDuties = dutyRecords.filter(d => d.date === todayStr);
-    return todayDuties.length > 0 ? todayDuties[0] : null;
+    return todayDuties;
   }, [dutyRecords, todayStr]);
 
   const calendarDays = useMemo(() => {
@@ -63,11 +72,8 @@ const DutyPage: React.FC = () => {
   };
 
   const markHandoverDone = (id: string) => {
-    setHandoverList(prev => prev.map(item =>
-      item.id === id ? { ...item, status: 'done' as const } : item
-    ));
+    completeHandover(id);
     Taro.showToast({ title: '已完成交接', icon: 'success' });
-    console.log('[Duty] 完成交接事项:', id);
   };
 
   const callPhone = (phone: string) => {
@@ -79,9 +85,49 @@ const DutyPage: React.FC = () => {
     });
   };
 
+  const handleAddHandover = () => {
+    if (!formData.title.trim()) {
+      Taro.showToast({ title: '请输入标题', icon: 'none' });
+      return;
+    }
+    if (!formData.content.trim()) {
+      Taro.showToast({ title: '请输入内容', icon: 'none' });
+      return;
+    }
+
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const timeStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const newItem: HandoverItem = {
+      id: `h-${Date.now()}`,
+      title: formData.title,
+      content: formData.content,
+      status: 'pending',
+      createTime: timeStr,
+      from: '我',
+      fromId: 'currentUser',
+      to: formData.to,
+      toId: formData.toId
+    };
+
+    addHandover(newItem);
+    setShowAddModal(false);
+    setFormData({ title: '', content: '', to: '张三', toId: 'zhangsan' });
+    Taro.showToast({ title: '交接事项已创建', icon: 'success' });
+  };
+
   const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
 
-  const pendingCount = handoverList.filter(h => h.status === 'pending').length;
+  const pendingCount = handovers.filter(h => h.status === 'pending').length;
+
+  const receiverOptions = [
+    { value: 'zhangsan', label: '张三' },
+    { value: 'lisi', label: '李四' },
+    { value: 'wangwu', label: '王五' },
+    { value: 'zhaoliu', label: '赵六' },
+    { value: 'sunqi', label: '孙七' }
+  ];
 
   return (
     <View className={styles.pageContainer}>
@@ -98,18 +144,7 @@ const DutyPage: React.FC = () => {
         >
           交接事项
           {pendingCount > 0 && (
-            <Text
-              style={{
-                marginLeft: '8rpx',
-                background: '#f53f3f',
-                color: '#fff',
-                fontSize: '20rpx',
-                padding: '2rpx 12rpx',
-                borderRadius: '999rpx'
-              }}
-            >
-              {pendingCount}
-            </Text>
+            <Text className={styles.badge}>{pendingCount}</Text>
           )}
         </View>
       </View>
@@ -126,25 +161,29 @@ const DutyPage: React.FC = () => {
             <>
               <View className={styles.currentDuty}>
                 <Text className={styles.dutyLabel}>今日值班</Text>
-                {currentDuty ? (
-                  <View className={styles.dutyInfo}>
-                    <View className={styles.dutyPerson}>
-                      <View className={styles.avatar}>
-                        {currentDuty.name.charAt(0)}
+                {currentDuty.length > 0 ? (
+                  <View className={styles.dutyCards}>
+                    {currentDuty.map(duty => (
+                      <View key={duty.id} className={styles.dutyInfo}>
+                        <View className={styles.dutyPerson}>
+                          <View className={classnames(styles.avatar, { [styles.night]: duty.shift === '夜班' })}>
+                            {duty.name.charAt(0)}
+                          </View>
+                          <View className={styles.personInfo}>
+                            <Text className={styles.name}>{duty.name}</Text>
+                            <Text className={styles.shift}>
+                              {duty.shift} · {duty.phone}
+                            </Text>
+                          </View>
+                        </View>
+                        <Button
+                          className={styles.contactBtn}
+                          onClick={() => callPhone(duty.phone)}
+                        >
+                          联系
+                        </Button>
                       </View>
-                      <View className={styles.personInfo}>
-                        <Text className={styles.name}>{currentDuty.name}</Text>
-                        <Text className={styles.shift}>
-                          {currentDuty.shift} · {currentDuty.phone}
-                        </Text>
-                      </View>
-                    </View>
-                    <Button
-                      className={styles.contactBtn}
-                      onClick={() => callPhone(currentDuty.phone)}
-                    >
-                      联系
-                    </Button>
+                    ))}
                   </View>
                 ) : (
                   <Text style={{ color: '#86909c', fontSize: '28rpx' }}>暂无值班信息</Text>
@@ -203,20 +242,26 @@ const DutyPage: React.FC = () => {
               </Text>
 
               <View className={styles.dutyList}>
-                {dutyRecords.slice(0, 7).map((record, index, arr) => {
-                  const sameDateItems = arr.filter(r => r.date === record.date);
-                  if (sameDateItems[0].id !== record.id) return null;
+                {dutyRecords.slice(0, 14).filter((_, i) => i % 2 === 0).map((record, index, arr) => {
+                  const sameDateItems = dutyRecords.filter(r => r.date === record.date);
 
                   const dayShift = sameDateItems.find(r => r.shift === '白班');
                   const nightShift = sameDateItems.find(r => r.shift === '夜班');
                   const date = new Date(record.date);
                   const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                  const isTodayDate = record.date === todayStr;
 
                   return (
-                    <View key={record.date} className={styles.dutyItem}>
+                    <View
+                      key={record.date}
+                      className={classnames(styles.dutyItem, { [styles.todayItem]: isTodayDate })}
+                    >
                       <View className={styles.dateInfo}>
                         <Text className={styles.date}>{date.getDate()}</Text>
-                        <Text className={styles.weekday}>{weekdays[date.getDay()]}</Text>
+                        <Text className={styles.weekday}>
+                          {weekdays[date.getDay()]}
+                          {isTodayDate && ' (今天)'}
+                        </Text>
                       </View>
                       <View className={styles.shiftInfo}>
                         {dayShift && (
@@ -241,14 +286,19 @@ const DutyPage: React.FC = () => {
 
           {activeTab === 'handover' && (
             <>
-              <Text className={styles.sectionTitle}>
-                <Text className={styles.titleLeft}>交接待办</Text>
-                <Text className={styles.more}>{pendingCount} 项待办</Text>
-              </Text>
+              <View className={styles.handoverHeader}>
+                <Text className={styles.sectionTitle} style={{ marginBottom: 0 }}>
+                  <Text className={styles.titleLeft}>交接待办</Text>
+                  <Text className={styles.more}>{pendingCount} 项待办</Text>
+                </Text>
+                <Button className={styles.addBtn} onClick={() => setShowAddModal(true)}>
+                  + 新增
+                </Button>
+              </View>
 
               <View className={styles.handoverSection}>
-                {handoverList.length > 0 ? (
-                  handoverList.map(item => (
+                {handovers.length > 0 ? (
+                  handovers.map(item => (
                     <View
                       key={item.id}
                       className={classnames(styles.handoverCard, styles[item.status])}
@@ -262,7 +312,10 @@ const DutyPage: React.FC = () => {
                       </View>
                       <View className={styles.cardContent}>{item.content}</View>
                       <View className={styles.cardFooter}>
-                        <Text className={styles.fromInfo}>交接人：{item.from}</Text>
+                        <View className={styles.fromInfo}>
+                          <Text>交接人：{item.from}</Text>
+                          {item.to && <Text style={{ marginLeft: '16rpx' }}>→ 接收人：{item.to}</Text>}
+                        </View>
                         <Text className={styles.time}>{item.createTime}</Text>
                       </View>
                       {item.status === 'pending' && (
@@ -273,6 +326,13 @@ const DutyPage: React.FC = () => {
                           >
                             标记完成
                           </Button>
+                        </View>
+                      )}
+                      {item.status === 'done' && item.completeTime && (
+                        <View style={{ marginTop: '16rpx', textAlign: 'right' }}>
+                          <Text style={{ fontSize: '24rpx', color: '#86909c' }}>
+                            完成时间：{item.completeTime}
+                          </Text>
                         </View>
                       )}
                     </View>
@@ -288,6 +348,59 @@ const DutyPage: React.FC = () => {
           )}
         </View>
       </ScrollView>
+
+      {showAddModal && (
+        <View className={styles.modalMask} onClick={() => setShowAddModal(false)}>
+          <View className={classnames(styles.modalContent, styles.formModal)} onClick={e => e.stopPropagation()}>
+            <Text className={styles.modalTitle}>新增交接事项</Text>
+            <Text className={styles.modalDesc}>填写交接信息并指定接收人</Text>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>标题</Text>
+              <Input
+                className={styles.formInput}
+                value={formData.title}
+                placeholder="请输入事项标题"
+                onInput={e => setFormData(prev => ({ ...prev, title: e.detail.value }))}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>内容</Text>
+              <Input
+                className={classnames(styles.formInput, styles.textarea)}
+                value={formData.content}
+                placeholder="请输入详细内容"
+                onInput={e => setFormData(prev => ({ ...prev, content: e.detail.value }))}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>交接给</Text>
+              <View className={styles.formSelect}>
+                {receiverOptions.map(opt => (
+                  <View
+                    key={opt.value}
+                    className={classnames(styles.formOption, { [styles.active]: formData.toId === opt.value })}
+                    onClick={() => setFormData(prev => ({ ...prev, to: opt.label, toId: opt.value }))}
+                  >
+                    {opt.label}
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View className={styles.modalActions}>
+              <Button className={classnames(styles.btn, styles.cancel)} onClick={() => setShowAddModal(false)}>
+                取消
+              </Button>
+              <Button className={classnames(styles.btn, styles.confirm)} onClick={handleAddHandover}>
+                确认提交
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };

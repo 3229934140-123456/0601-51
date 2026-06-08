@@ -4,6 +4,10 @@
   min-height: 100vh;
   background: $color-bg-page;
   padding-bottom: 120rpx;
+
+  &.detailPage {
+    padding-bottom: 0;
+  }
 }
 
 .filterBar {
@@ -17,6 +21,11 @@
   .filterRow {
     display: flex;
     gap: $spacing-md;
+    margin-bottom: $spacing-md;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
 
     .filterItem {
       flex: 1;
@@ -38,6 +47,14 @@
         justify-content: space-between;
         font-size: $font-size-sm;
         color: $color-text-primary;
+        border: 1rpx solid transparent;
+        transition: all $transition-fast;
+
+        &.active {
+          border-color: $color-primary;
+          background: $color-primary-bg;
+          color: $color-primary;
+        }
 
         .arrow {
           font-size: 20rpx;
@@ -48,10 +65,27 @@
     }
   }
 
+  .resetBtn {
+    @include button-reset;
+    height: 64rpx;
+    padding: 0 $spacing-md;
+    border-radius: $radius-md;
+    font-size: $font-size-sm;
+    background: $color-error-bg;
+    color: $color-error;
+    align-self: flex-end;
+    margin-bottom: 0;
+    transition: all $transition-fast;
+
+    &:active {
+      opacity: 0.8;
+    }
+  }
+
   .levelTabs {
     display: flex;
     gap: $spacing-sm;
-    margin-top: $spacing-md;
+    margin-top: 0;
     overflow-x: auto;
     padding-bottom: 4rpx;
 
@@ -125,6 +159,248 @@
   .emptyText {
     font-size: $font-size-md;
     color: $color-text-tertiary;
+  }
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-md $spacing-lg;
+  background: $color-bg-card;
+  border-bottom: 1rpx solid $color-divider;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+
+  .detailBack {
+    font-size: $font-size-md;
+    color: $color-primary;
+    width: 80rpx;
+  }
+
+  .detailTitle {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
+  }
+}
+
+.alertDetailCard {
+  margin: $spacing-md $spacing-lg;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+
+  .alertTitleRow {
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-md;
+
+    .alertTitle {
+      flex: 1;
+      font-size: $font-size-lg;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+      line-height: 1.4;
+    }
+  }
+
+  .alertMeta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-sm $spacing-md;
+    margin-bottom: $spacing-md;
+    padding-bottom: $spacing-md;
+    border-bottom: 1rpx solid $color-divider;
+
+    .metaItem {
+      font-size: $font-size-xs;
+      display: flex;
+      align-items: center;
+
+      .metaLabel {
+        color: $color-text-tertiary;
+      }
+
+      .metaValue {
+        color: $color-text-secondary;
+        margin-left: 4rpx;
+      }
+    }
+  }
+
+  .alertContent {
+    .contentLabel {
+      font-size: $font-size-sm;
+      color: $color-text-tertiary;
+      margin-bottom: $spacing-sm;
+      display: block;
+    }
+
+    .contentText {
+      font-size: $font-size-sm;
+      color: $color-text-secondary;
+      line-height: 1.6;
+    }
+  }
+}
+
+.timelineSection {
+  margin: $spacing-md $spacing-lg;
+
+  .sectionTitle {
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
+    margin-bottom: $spacing-md;
+    display: block;
+  }
+
+  .timeline {
+    background: $color-bg-card;
+    border-radius: $radius-lg;
+    padding: $spacing-md $spacing-lg;
+    box-shadow: $shadow-card;
+
+    .timelineItem {
+      position: relative;
+      padding-left: 40rpx;
+      padding-bottom: $spacing-lg;
+
+      &:last-child {
+        padding-bottom: 0;
+
+        &::before {
+          display: none;
+        }
+      }
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 10rpx;
+        top: 24rpx;
+        bottom: 0;
+        width: 2rpx;
+        background: $color-divider;
+      }
+
+      .timelineDot {
+        position: absolute;
+        left: 0;
+        top: 8rpx;
+        width: 20rpx;
+        height: 20rpx;
+        border-radius: 50%;
+        background: $color-primary;
+        border: 4rpx solid $color-primary-bg;
+
+        &.first {
+          background: $color-error;
+          border-color: $color-error-bg;
+        }
+      }
+
+      .timelineContent {
+        .timelineHeader {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8rpx;
+
+          .timelineAction {
+            font-size: $font-size-sm;
+            font-weight: $font-weight-medium;
+            color: $color-text-primary;
+          }
+
+          .timelineTime {
+            font-size: $font-size-xs;
+            color: $color-text-tertiary;
+          }
+        }
+
+        .timelineOperator {
+          font-size: $font-size-xs;
+          color: $color-text-secondary;
+          margin-bottom: 4rpx;
+        }
+
+        .timelineTransfer {
+          font-size: $font-size-xs;
+          color: $color-warning;
+          margin-bottom: 4rpx;
+        }
+
+        .timelineRemark {
+          font-size: $font-size-xs;
+          color: $color-text-tertiary;
+          line-height: 1.5;
+          margin-top: 8rpx;
+          padding: $spacing-sm;
+          background: $color-bg-page;
+          border-radius: $radius-sm;
+        }
+      }
+    }
+  }
+
+  .emptyTimeline {
+    text-align: center;
+    padding: 60rpx 0;
+    background: $color-bg-card;
+    border-radius: $radius-lg;
+    color: $color-text-tertiary;
+    font-size: $font-size-sm;
+    box-shadow: $shadow-card;
+  }
+}
+
+.detailActions {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: $spacing-md;
+  padding: $spacing-md $spacing-lg;
+  background: $color-bg-card;
+  border-top: 1rpx solid $color-divider;
+  padding-bottom: calc(#{$spacing-md} + env(safe-area-inset-bottom));
+
+  .actionPrimary,
+  .actionSecondary,
+  .actionSuccess {
+    @include button-reset;
+    flex: 1;
+    height: $button-height-lg;
+    border-radius: $radius-button;
+    font-size: $font-size-md;
+    font-weight: $font-weight-medium;
+    transition: all $transition-fast;
+
+    &:active {
+      opacity: 0.9;
+      transform: scale(0.98);
+    }
+  }
+
+  .actionPrimary {
+    background: $color-primary;
+    color: $color-text-white;
+  }
+
+  .actionSecondary {
+    background: $color-warning-bg;
+    color: $color-warning;
+  }
+
+  .actionSuccess {
+    background: $color-success;
+    color: $color-text-white;
   }
 }
 
@@ -228,6 +504,65 @@
       &:active {
         opacity: 0.9;
         transform: scale(0.98);
+      }
+    }
+  }
+}
+
+.pickerMask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+}
+
+.pickerContent {
+  width: 100%;
+  background: $color-bg-card;
+  border-radius: $radius-xl $radius-xl 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+
+  .pickerHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $spacing-md $spacing-lg;
+    border-bottom: 1rpx solid $color-divider;
+
+    .pickerCancel,
+    .pickerConfirm {
+      font-size: $font-size-md;
+
+      &.pickerCancel { color: $color-text-tertiary; }
+      &.pickerConfirm { color: $color-primary; font-weight: $font-weight-medium; }
+    }
+
+    .pickerTitle {
+      font-size: $font-size-md;
+      font-weight: $font-weight-semibold;
+      color: $color-text-primary;
+    }
+  }
+
+  .pickerOptions {
+    max-height: 500rpx;
+    overflow-y: auto;
+
+    .pickerOption {
+      padding: $spacing-md $spacing-lg;
+      font-size: $font-size-md;
+      color: $color-text-primary;
+      border-bottom: 1rpx solid $color-divider;
+
+      &.selected {
+        color: $color-primary;
+        font-weight: $font-weight-medium;
+        background: $color-primary-bg;
       }
     }
   }

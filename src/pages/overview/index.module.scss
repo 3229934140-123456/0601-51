@@ -241,3 +241,16 @@
     }
   }
 }
+
+.emptyEvents {
+  text-align: center;
+  padding: 60rpx 0;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+
+  .emptyText {
+    font-size: $font-size-sm;
+    color: $color-text-tertiary;
+  }
+}

@@ -1,16 +1,17 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView } from '@tarojs/components';
+import { View, Text, ScrollView, Button } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import classnames from 'classnames';
 import type { HostItem, HostStatus, MetricPoint } from '@/types';
-import { hostList, generateMetricData } from '@/data/host';
+import { useAppStore } from '@/store';
+import { generateMetricData } from '@/data/host';
 import { idcOptions, bizOptions } from '@/data/overview';
 import StatusTag from '@/components/StatusTag';
 import MetricChart from '@/components/MetricChart';
 import styles from './index.module.scss';
 
 const HostPage: React.FC = () => {
-  const [hosts] = useState<HostItem[]>(hostList);
+  const { hosts } = useAppStore();
   const [idcFilter, setIdcFilter] = useState('all');
   const [bizFilter, setBizFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<HostStatus | 'all'>('all');
@@ -34,8 +35,8 @@ const HostPage: React.FC = () => {
 
   const filteredHosts = useMemo(() => {
     return hosts.filter(host => {
-      if (idcFilter !== 'all' && !host.idc.includes(idcFilter === 'hd' ? '华东' : idcFilter === 'hn' ? '华南' : idcFilter === 'hb' ? '华北' : '西南')) return false;
-      if (bizFilter !== 'all' && !host.biz.includes(bizFilter === 'order' ? '订单' : bizFilter === 'pay' ? '支付' : bizFilter === 'user' ? '用户' : bizFilter === 'goods' ? '商品' : '营销')) return false;
+      if (idcFilter !== 'all' && host.idcKey !== idcFilter) return false;
+      if (bizFilter !== 'all' && host.bizKey !== bizFilter) return false;
       if (statusFilter !== 'all' && host.status !== statusFilter) return false;
       return true;
     });
@@ -43,12 +44,12 @@ const HostPage: React.FC = () => {
 
   const stats = useMemo(() => {
     return {
-      total: hosts.length,
-      online: hosts.filter(h => h.status === 'online').length,
-      warning: hosts.filter(h => h.status === 'warning').length,
-      offline: hosts.filter(h => h.status === 'offline' || h.status === 'error').length
+      total: filteredHosts.length,
+      online: filteredHosts.filter(h => h.status === 'online').length,
+      warning: filteredHosts.filter(h => h.status === 'warning').length,
+      offline: filteredHosts.filter(h => h.status === 'offline' || h.status === 'error').length
     };
-  }, [hosts]);
+  }, [filteredHosts]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
@@ -62,6 +63,13 @@ const HostPage: React.FC = () => {
     setExpandedHost(expandedHost === hostId ? null : hostId);
   };
 
+  const handleReset = () => {
+    setIdcFilter('all');
+    setBizFilter('all');
+    setStatusFilter('all');
+    Taro.showToast({ title: '已重置筛选', icon: 'none' });
+  };
+
   const getMetricStatus = (value: number, type: string) => {
     if (type === 'load') {
       if (value >= 80) return 'danger';
@@ -71,6 +79,8 @@ const HostPage: React.FC = () => {
     if (value >= 80) return 'warning';
     return '';
   };
+
+  const hasActiveFilter = idcFilter !== 'all' || bizFilter !== 'all' || statusFilter !== 'all';
 
   const statusTextMap: Record<string, string> = {
     all: '全部',
@@ -92,18 +102,23 @@ const HostPage: React.FC = () => {
         <View className={styles.filterRow}>
           <View className={styles.filterItem} onClick={() => setShowIdcPicker(true)}>
             <Text className={styles.filterLabel}>机房</Text>
-            <View className={styles.filterSelect}>
+            <View className={classnames(styles.filterSelect, { [styles.active]: idcFilter !== 'all' })}>
               <Text>{idcLabelMap[idcFilter] || '全部机房'}</Text>
               <Text className={styles.arrow}>▼</Text>
             </View>
           </View>
           <View className={styles.filterItem} onClick={() => setShowBizPicker(true)}>
             <Text className={styles.filterLabel}>业务</Text>
-            <View className={styles.filterSelect}>
+            <View className={classnames(styles.filterSelect, { [styles.active]: bizFilter !== 'all' })}>
               <Text>{bizLabelMap[bizFilter] || '全部业务'}</Text>
               <Text className={styles.arrow}>▼</Text>
             </View>
           </View>
+          {hasActiveFilter && (
+            <Button className={styles.resetBtn} onClick={handleReset}>
+              重置
+            </Button>
+          )}
         </View>
         <View className={styles.statusTabs}>
           {Object.entries(statusTextMap).map(([value, label]) => (
@@ -254,7 +269,7 @@ const HostPage: React.FC = () => {
               <Text className={styles.pickerTitle}>选择机房</Text>
               <Text className={styles.pickerConfirm} onClick={() => setShowIdcPicker(false)}>确定</Text>
             </View>
-            <View className={styles.pickerOptions}>
+            <ScrollView scrollY className={styles.pickerOptions}>
               {idcOptions.map(option => (
                 <View
                   key={option.value}
@@ -264,7 +279,7 @@ const HostPage: React.FC = () => {
                   {option.label}
                 </View>
               ))}
-            </View>
+            </ScrollView>
           </View>
         </View>
       )}
@@ -277,7 +292,7 @@ const HostPage: React.FC = () => {
               <Text className={styles.pickerTitle}>选择业务</Text>
               <Text className={styles.pickerConfirm} onClick={() => setShowBizPicker(false)}>确定</Text>
             </View>
-            <View className={styles.pickerOptions}>
+            <ScrollView scrollY className={styles.pickerOptions}>
               {bizOptions.map(option => (
                 <View
                   key={option.value}
@@ -287,7 +302,7 @@ const HostPage: React.FC = () => {
                   {option.label}
                 </View>
               ))}
-            </View>
+            </ScrollView>
           </View>
         </View>
       )}

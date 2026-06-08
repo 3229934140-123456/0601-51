@@ -8,6 +8,29 @@ export type ServiceStatus = 'normal' | 'warning' | 'error' | 'maintenance';
 
 export type InspectionStatus = 'pending' | 'processing' | 'completed';
 
+export type InspectionType = 'daily' | 'weekly' | 'monthly' | 'special';
+
+export interface ProcessRecord {
+  id: string;
+  action: string;
+  operator: string;
+  operatorName: string;
+  time: string;
+  content?: string;
+  transferTo?: string;
+  transferToName?: string;
+}
+
+export interface BoundDevice {
+  id: string;
+  deviceId: string;
+  deviceName: string;
+  deviceType: string;
+  bindTime: string;
+  photoUrl?: string;
+  remark?: string;
+}
+
 export interface AlertItem {
   id: string;
   title: string;
@@ -16,13 +39,16 @@ export interface AlertItem {
   hostName: string;
   serviceName: string;
   idc: string;
+  idcKey: string;
   biz: string;
+  bizKey: string;
   content: string;
   createTime: string;
   confirmTime?: string;
   resolveTime?: string;
   handler?: string;
   handlerName?: string;
+  processRecords: ProcessRecord[];
 }
 
 export interface HostItem {
@@ -30,7 +56,9 @@ export interface HostItem {
   name: string;
   ip: string;
   idc: string;
+  idcKey: string;
   biz: string;
+  bizKey: string;
   status: HostStatus;
   cpu: number;
   memory: number;
@@ -47,7 +75,10 @@ export interface ServiceItem {
   id: string;
   name: string;
   status: ServiceStatus;
+  idc: string;
+  idcKey: string;
   biz: string;
+  bizKey: string;
   instances: number;
   healthyInstances: number;
   responseTime: number;
@@ -57,13 +88,23 @@ export interface ServiceItem {
 export interface InspectionItem {
   id: string;
   title: string;
+  type: InspectionType;
+  typeLabel: string;
   idc: string;
+  idcKey: string;
   status: InspectionStatus;
   total: number;
   finished: number;
   startTime: string;
+  planTime: string;
+  planEndTime?: string;
   endTime?: string;
   inspector?: string;
+  inspectorId?: string;
+  inspectorName?: string;
+  tasks: InspectionTask[];
+  boundDevices: BoundDevice[];
+  photos: string[];
 }
 
 export interface InspectionTask {
@@ -74,14 +115,16 @@ export interface InspectionTask {
   status: 'pending' | 'pass' | 'fail';
   remark?: string;
   photoUrl?: string;
+  finishTime?: string;
 }
 
 export interface DutyRecord {
   id: string;
   date: string;
-  shift: string;
+  shift: '白班' | '夜班';
   name: string;
   phone: string;
+  userId: string;
 }
 
 export interface HandoverItem {
@@ -91,6 +134,10 @@ export interface HandoverItem {
   status: 'pending' | 'done';
   createTime: string;
   from: string;
+  fromId: string;
+  to?: string;
+  toId?: string;
+  completeTime?: string;
 }
 
 export interface ImportantEvent {
@@ -100,6 +147,7 @@ export interface ImportantEvent {
   content: string;
   time: string;
   isTop: boolean;
+  alertId?: string;
 }
 
 export interface OverviewData {
@@ -131,4 +179,10 @@ export interface IDCOption {
 export interface BizOption {
   value: string;
   label: string;
+}
+
+export interface InspectionTypeOption {
+  value: InspectionType;
+  label: string;
+  defaultTaskCount: number;
 }

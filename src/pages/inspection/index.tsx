@@ -1,21 +1,38 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, Button, Image } from '@tarojs/components';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, ScrollView, Button, Image, Input } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import classnames from 'classnames';
-import type { InspectionItem, InspectionTask } from '@/types';
-import { inspectionList, inspectionTasks } from '@/data/inspection';
+import type { InspectionItem, InspectionTask, BoundDevice } from '@/types';
+import { useAppStore } from '@/store';
+import { inspectionTypes, inspectionTaskTemplates, inspectorOptions } from '@/data/inspection';
+import { idcOptions } from '@/data/overview';
 import StatusTag from '@/components/StatusTag';
 import styles from './index.module.scss';
 
 const InspectionPage: React.FC = () => {
-  const [list, setList] = useState<InspectionItem[]>(inspectionList);
-  const [tasks, setTasks] = useState<InspectionTask[]>(inspectionTasks);
+  const { inspections, createInspection, updateInspectionTask, bindDevice, completeInspection } = useAppStore();
+
   const [currentInspection, setCurrentInspection] = useState<InspectionItem | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showScanResult, setShowScanResult] = useState(false);
-  const [scanResult, setScanResult] = useState('');
+  const [showBindModal, setShowBindModal] = useState(false);
+  const [selectedInspectionForBind, setSelectedInspectionForBind] = useState<InspectionItem | null>(null);
+
+  const [formData, setFormData] = useState({
+    idcKey: 'hd',
+    type: 'daily',
+    inspectorId: 'zhangsan',
+    planDate: '',
+    planTime: '09:00'
+  });
+
+  const [bindForm, setBindForm] = useState({
+    deviceId: '',
+    deviceName: '',
+    deviceType: 'server',
+    remark: ''
+  });
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
@@ -28,7 +45,6 @@ const InspectionPage: React.FC = () => {
   const startInspection = (item: InspectionItem) => {
     setCurrentInspection(item);
     setShowDetail(true);
-    console.log('[Inspection] 开始巡检:', item.id);
   };
 
   const goBack = () => {
@@ -37,53 +53,72 @@ const InspectionPage: React.FC = () => {
   };
 
   const handleScan = () => {
-    Taro.scanCode({
+    const pendingOrProcessing = inspections.filter(i => i.status !== 'completed');
+    if (pendingOrProcessing.length === 0) {
+      Taro.showToast({ title: '暂无进行中的巡检任务', icon: 'none' });
+      return;
+    }
+    if (pendingOrProcessing.length === 1) {
+      setSelectedInspectionForBind(pendingOrProcessing[0]);
+      setBindForm(prev => ({ ...prev, deviceId: `DEV-${Date.now().toString().slice(-6)}` }));
+      setShowBindModal(true);
+      return;
+    }
+
+    const options = pendingOrProcessing.map(i => i.title);
+    Taro.showActionSheet({
+      itemList: options,
       success: (res) => {
-        setScanResult(res.result || '设备编号：DEV-2024-001');
-        setShowScanResult(true);
-        console.log('[Inspection] 扫码结果:', res.result);
-      },
-      fail: () => {
-        setScanResult('设备编号：DEV-2024-001（模拟扫码结果）');
-        setShowScanResult(true);
+        const selected = pendingOrProcessing[res.tapIndex];
+        setSelectedInspectionForBind(selected);
+        setBindForm(prev => ({ ...prev, deviceId: `DEV-${Date.now().toString().slice(-6)}` }));
+        setShowBindModal(true);
       }
     });
   };
 
   const handlePhoto = (taskId: string) => {
+    if (!currentInspection) return;
     Taro.chooseImage({
       count: 1,
       sizeType: ['compressed'],
       sourceType: ['camera', 'album'],
       success: (res) => {
         const tempFilePath = res.tempFilePaths?.[0] || '';
-        setTasks(prev => prev.map(t =>
-          t.id === taskId ? { ...t, photoUrl: tempFilePath } : t
-        ));
-        console.log('[Inspection] 上传照片:', taskId);
+        updateInspectionTask(currentInspection.id, taskId, { photoUrl: tempFilePath });
+        setCurrentInspection(prev => prev ? {
+          ...prev,
+          tasks: prev.tasks.map(t => t.id === taskId ? { ...t, photoUrl: tempFilePath } : t)
+        } : null);
       },
       fail: () => {
-        setTasks(prev => prev.map(t =>
-          t.id === taskId ? { ...t, photoUrl: 'https://picsum.photos/id/3/300/300' } : t
-        ));
+        const mockUrl = 'https://picsum.photos/id/3/300/300';
+        updateInspectionTask(currentInspection.id, taskId, { photoUrl: mockUrl });
+        setCurrentInspection(prev => prev ? {
+          ...prev,
+          tasks: prev.tasks.map(t => t.id === taskId ? { ...t, photoUrl: mockUrl } : t)
+        } : null);
       }
     });
   };
 
   const markTaskStatus = (taskId: string, status: 'pass' | 'fail') => {
-    setTasks(prev => prev.map(t =>
-      t.id === taskId ? { ...t, status } : t
-    ));
+    if (!currentInspection) return;
+    updateInspectionTask(currentInspection.id, taskId, { status });
+    setCurrentInspection(prev => {
+      if (!prev) return null;
+      const tasks = prev.tasks.map(t => t.id === taskId ? { ...t, status } : t);
+      const finished = tasks.filter(t => t.status !== 'pending').length;
+      return { ...prev, tasks, finished, status: finished > 0 ? 'processing' : prev.status };
+    });
   };
 
   const submitInspection = () => {
-    const requiredTasks = tasks.filter(t => t.required);
+    if (!currentInspection) return;
+    const requiredTasks = currentInspection.tasks.filter(t => t.required);
     const unfinished = requiredTasks.filter(t => t.status === 'pending');
     if (unfinished.length > 0) {
-      Taro.showToast({
-        title: `还有${unfinished.length}项必填任务未完成`,
-        icon: 'none'
-      });
+      Taro.showToast({ title: `还有${unfinished.length}项必填任务未完成`, icon: 'none' });
       return;
     }
 
@@ -91,28 +126,76 @@ const InspectionPage: React.FC = () => {
       title: '确认提交',
       content: '确定要提交本次巡检结果吗？',
       success: (res) => {
-        if (res.confirm) {
-          const finishedCount = tasks.filter(t => t.status !== 'pending').length;
-          if (currentInspection) {
-            setList(prev => prev.map(item =>
-              item.id === currentInspection.id
-                ? { ...item, status: 'completed' as const, finished: finishedCount, endTime: new Date().toISOString() }
-                : item
-            ));
-          }
+        if (res.confirm && currentInspection) {
+          completeInspection(currentInspection.id);
           Taro.showToast({ title: '提交成功', icon: 'success' });
           setShowDetail(false);
           setCurrentInspection(null);
-          console.log('[Inspection] 提交巡检:', currentInspection?.id);
         }
       }
     });
   };
 
-  const createInspection = () => {
+  const handleCreateInspection = () => {
+    const idcOption = idcOptions.find(o => o.value === formData.idcKey);
+    const typeInfo = inspectionTypes.find(t => t.key === formData.type);
+    const inspectorOption = inspectorOptions.find(o => o.value === formData.inspectorId);
+
+    if (!idcOption || !typeInfo) return;
+
+    const planDate = formData.planDate || new Date().toISOString().split('T')[0];
+    const planTimeStr = `${planDate} ${formData.planTime}:00`;
+
+    const tasks = (inspectionTaskTemplates[formData.type] || []).map((t, idx) => ({
+      ...t,
+      id: `new-${Date.now()}-${idx}`
+    }));
+
+    const newInspection: InspectionItem = {
+      id: `ins-${Date.now()}`,
+      title: `${idcOption.label}${typeInfo.label}`,
+      idc: idcOption.label,
+      idcKey: formData.idcKey,
+      type: formData.type,
+      typeLabel: typeInfo.label,
+      status: 'pending',
+      total: tasks.length,
+      finished: 0,
+      startTime: '',
+      planTime: planTimeStr,
+      inspector: inspectorOption?.label || '',
+      inspectorId: formData.inspectorId,
+      tasks,
+      boundDevices: [],
+      photos: []
+    };
+
+    createInspection(newInspection);
     setShowCreateModal(false);
     Taro.showToast({ title: '巡检创建成功', icon: 'success' });
-    console.log('[Inspection] 创建新巡检');
+  };
+
+  const handleBindDevice = () => {
+    if (!selectedInspectionForBind || !bindForm.deviceName) {
+      Taro.showToast({ title: '请填写设备名称', icon: 'none' });
+      return;
+    }
+
+    const device: BoundDevice = {
+      id: `dev-${Date.now()}`,
+      deviceId: bindForm.deviceId,
+      deviceName: bindForm.deviceName,
+      deviceType: bindForm.deviceType as any,
+      bindTime: new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'),
+      photoUrl: '',
+      remark: bindForm.remark
+    };
+
+    bindDevice(selectedInspectionForBind.id, device);
+    setShowBindModal(false);
+    setBindForm({ deviceId: '', deviceName: '', deviceType: 'server', remark: '' });
+    setSelectedInspectionForBind(null);
+    Taro.showToast({ title: '设备绑定成功', icon: 'success' });
   };
 
   const statusTextMap: Record<string, string> = {
@@ -121,8 +204,17 @@ const InspectionPage: React.FC = () => {
     completed: '已完成'
   };
 
-  const completedCount = tasks.filter(t => t.status !== 'pending').length;
-  const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
+  const completedCount = currentInspection?.tasks.filter(t => t.status !== 'pending').length || 0;
+  const totalCount = currentInspection?.tasks.length || 0;
+  const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  const deviceTypeMap: Record<string, string> = {
+    server: '服务器',
+    network: '网络设备',
+    storage: '存储设备',
+    security: '安全设备',
+    other: '其他'
+  };
 
   if (showDetail && currentInspection) {
     return (
@@ -136,12 +228,16 @@ const InspectionPage: React.FC = () => {
                 <Text className={styles.value}>{currentInspection.idc}</Text>
               </View>
               <View className={styles.metaItem}>
+                <Text className={styles.label}>类型：</Text>
+                <Text className={styles.value}>{currentInspection.typeLabel}</Text>
+              </View>
+              <View className={styles.metaItem}>
                 <Text className={styles.label}>状态：</Text>
                 <StatusTag type={currentInspection.status} text={statusTextMap[currentInspection.status]} />
               </View>
               <View className={styles.metaItem}>
-                <Text className={styles.label}>进度：</Text>
-                <Text className={styles.value}>{completedCount}/{tasks.length}</Text>
+                <Text className={styles.label}>巡检员：</Text>
+                <Text className={styles.value}>{currentInspection.inspector || '待分配'}</Text>
               </View>
             </View>
           </View>
@@ -156,8 +252,42 @@ const InspectionPage: React.FC = () => {
             </View>
           </View>
 
+          {currentInspection.boundDevices && currentInspection.boundDevices.length > 0 && (
+            <View style={{ padding: '0 32rpx', marginBottom: '24rpx' }}>
+              <Text style={{ fontSize: '30rpx', fontWeight: 600, color: '#1d2129', marginBottom: '16rpx', display: 'block' }}>
+                已绑定设备 ({currentInspection.boundDevices.length})
+              </Text>
+              {currentInspection.boundDevices.map(device => (
+                <View key={device.id} style={{
+                  background: '#fff',
+                  borderRadius: '12rpx',
+                  padding: '20rpx 24rpx',
+                  marginBottom: '12rpx',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <View>
+                    <Text style={{ fontSize: '28rpx', color: '#1d2129', fontWeight: 500, display: 'block' }}>
+                      {device.deviceName}
+                    </Text>
+                    <Text style={{ fontSize: '24rpx', color: '#86909c', display: 'block', marginTop: '4rpx' }}>
+                      编号：{device.deviceId} · {deviceTypeMap[device.deviceType] || '其他'}
+                    </Text>
+                    {device.remark && (
+                      <Text style={{ fontSize: '24rpx', color: '#86909c', display: 'block', marginTop: '4rpx' }}>
+                        备注：{device.remark}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={{ fontSize: '24rpx', color: '#00b42a' }}>✓ 已绑定</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
           <View className={styles.taskList}>
-            {tasks.map(task => (
+            {currentInspection.tasks.map(task => (
               <View key={task.id} className={styles.taskCard}>
                 <View className={styles.taskHeader}>
                   <Text className={styles.taskTitle}>
@@ -215,8 +345,12 @@ const InspectionPage: React.FC = () => {
 
         <View className={styles.submitBar}>
           <Button className={styles.backBtn} onClick={goBack}>返回</Button>
-          <Button className={styles.submitBtn} onClick={submitInspection}>
-            提交巡检结果
+          <Button
+            className={styles.submitBtn}
+            onClick={submitInspection}
+            disabled={currentInspection.status === 'completed'}
+          >
+            {currentInspection.status === 'completed' ? '已完成' : '提交巡检结果'}
           </Button>
         </View>
       </View>
@@ -256,7 +390,7 @@ const InspectionPage: React.FC = () => {
         <Text className={styles.sectionTitle}>巡检任务</Text>
 
         <View className={styles.inspectionList}>
-          {list.map(item => (
+          {inspections.map(item => (
             <View key={item.id} className={styles.inspectionCard}>
               <View className={styles.cardHeader}>
                 <Text className={styles.cardTitle}>{item.title}</Text>
@@ -269,8 +403,12 @@ const InspectionPage: React.FC = () => {
                   <Text className={styles.value}>{item.idc}</Text>
                 </View>
                 <View className={styles.metaItem}>
-                  <Text className={styles.label}>开始时间：</Text>
-                  <Text className={styles.value}>{item.startTime}</Text>
+                  <Text className={styles.label}>类型：</Text>
+                  <Text className={styles.value}>{item.typeLabel || '日常巡检'}</Text>
+                </View>
+                <View className={styles.metaItem}>
+                  <Text className={styles.label}>计划时间：</Text>
+                  <Text className={styles.value}>{item.planTime || item.startTime}</Text>
                 </View>
               </View>
 
@@ -292,26 +430,17 @@ const InspectionPage: React.FC = () => {
                   {item.inspector ? `巡检员：${item.inspector}` : '待分配'}
                 </Text>
                 {item.status === 'pending' && (
-                  <Button
-                    className={styles.actionBtn}
-                    onClick={() => startInspection(item)}
-                  >
+                  <Button className={styles.actionBtn} onClick={() => startInspection(item)}>
                     开始巡检
                   </Button>
                 )}
                 {item.status === 'processing' && (
-                  <Button
-                    className={styles.actionBtn}
-                    onClick={() => startInspection(item)}
-                  >
+                  <Button className={styles.actionBtn} onClick={() => startInspection(item)}>
                     继续巡检
                   </Button>
                 )}
                 {item.status === 'completed' && (
-                  <Button
-                    className={classnames(styles.actionBtn, styles.secondary)}
-                    onClick={() => startInspection(item)}
-                  >
+                  <Button className={classnames(styles.actionBtn, styles.secondary)} onClick={() => startInspection(item)}>
                     查看详情
                   </Button>
                 )}
@@ -323,23 +452,94 @@ const InspectionPage: React.FC = () => {
 
       {showCreateModal && (
         <View className={styles.modalMask} onClick={() => setShowCreateModal(false)}>
-          <View className={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <View className={styles.modalIcon}>📋</View>
+          <View className={classnames(styles.modalContent, styles.formModal)} onClick={e => e.stopPropagation()}>
             <Text className={styles.modalTitle}>发起巡检</Text>
-            <Text className={styles.modalDesc}>
-              选择巡检类型和机房后，系统将自动生成巡检任务清单
-            </Text>
+            <Text className={styles.modalDesc}>填写巡检信息后，系统将自动生成检查清单</Text>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>机房</Text>
+              <View className={styles.formSelect}>
+                {idcOptions.filter(o => o.value !== 'all').map(option => (
+                  <View
+                    key={option.value}
+                    className={classnames(styles.formOption, { [styles.active]: formData.idcKey === option.value })}
+                    onClick={() => setFormData(prev => ({ ...prev, idcKey: option.value }))}
+                  >
+                    {option.label}
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>巡检类型</Text>
+              <View className={styles.formSelect}>
+                {inspectionTypes.map(type => (
+                  <View
+                    key={type.key}
+                    className={classnames(styles.formOption, { [styles.active]: formData.type === type.key })}
+                    onClick={() => setFormData(prev => ({ ...prev, type: type.key }))}
+                  >
+                    {type.label}
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>负责人</Text>
+              <View className={styles.formSelect}>
+                {inspectorOptions.map(opt => (
+                  <View
+                    key={opt.value}
+                    className={classnames(styles.formOption, { [styles.active]: formData.inspectorId === opt.value })}
+                    onClick={() => setFormData(prev => ({ ...prev, inspectorId: opt.value }))}
+                  >
+                    {opt.label}
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>计划时间</Text>
+              <View className={styles.timeInputRow}>
+                <Input
+                  className={styles.dateInput}
+                  type="number"
+                  placeholder="选择日期"
+                  value={formData.planDate}
+                  onInput={e => setFormData(prev => ({ ...prev, planDate: e.detail.value }))}
+                  onClick={() => {
+                    const d = new Date();
+                    const defaultDate = formData.planDate || `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                    Taro.showActionSheet({
+                      itemList: ['今天', '明天', '后天'],
+                      success: (res) => {
+                        const dates = ['今天', '明天', '后天'];
+                        const offset = dates.indexOf(dates[res.tapIndex]);
+                        const targetDate = new Date(Date.now() + offset * 86400000);
+                        const dateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth()+1).padStart(2,'0')}-${String(targetDate.getDate()).padStart(2,'0')}`;
+                        setFormData(prev => ({ ...prev, planDate: dateStr }));
+                      }
+                    });
+                  }}
+                />
+                <Input
+                  className={styles.timeInput}
+                  type="number"
+                  placeholder="09:00"
+                  value={formData.planTime}
+                  onInput={e => setFormData(prev => ({ ...prev, planTime: e.detail.value }))}
+                />
+              </View>
+            </View>
+
             <View className={styles.modalActions}>
-              <Button
-                className={classnames(styles.btn, styles.cancel)}
-                onClick={() => setShowCreateModal(false)}
-              >
+              <Button className={classnames(styles.btn, styles.cancel)} onClick={() => setShowCreateModal(false)}>
                 取消
               </Button>
-              <Button
-                className={classnames(styles.btn, styles.confirm)}
-                onClick={createInspection}
-              >
+              <Button className={classnames(styles.btn, styles.confirm)} onClick={handleCreateInspection}>
                 确认创建
               </Button>
             </View>
@@ -347,26 +547,64 @@ const InspectionPage: React.FC = () => {
         </View>
       )}
 
-      {showScanResult && (
-        <View className={styles.modalMask} onClick={() => setShowScanResult(false)}>
-          <View className={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <View className={styles.modalIcon}>📱</View>
-            <Text className={styles.modalTitle}>扫码成功</Text>
-            <Text className={styles.modalDesc}>{scanResult}</Text>
+      {showBindModal && (
+        <View className={styles.modalMask} onClick={() => setShowBindModal(false)}>
+          <View className={classnames(styles.modalContent, styles.formModal)} onClick={e => e.stopPropagation()}>
+            <Text className={styles.modalTitle}>绑定设备</Text>
+            <Text className={styles.modalDesc}>
+              绑定到：{selectedInspectionForBind?.title}
+            </Text>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>设备编号</Text>
+              <Input
+                className={styles.formInput}
+                value={bindForm.deviceId}
+                placeholder="请输入设备编号"
+                onInput={e => setBindForm(prev => ({ ...prev, deviceId: e.detail.value }))}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>设备名称</Text>
+              <Input
+                className={styles.formInput}
+                value={bindForm.deviceName}
+                placeholder="请输入设备名称"
+                onInput={e => setBindForm(prev => ({ ...prev, deviceName: e.detail.value }))}
+              />
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>设备类型</Text>
+              <View className={styles.formSelect}>
+                {Object.entries(deviceTypeMap).map(([key, label]) => (
+                  <View
+                    key={key}
+                    className={classnames(styles.formOption, { [styles.active]: bindForm.deviceType === key })}
+                    onClick={() => setBindForm(prev => ({ ...prev, deviceType: key }))}
+                  >
+                    {label}
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>备注</Text>
+              <Input
+                className={styles.formInput}
+                value={bindForm.remark}
+                placeholder="请输入备注信息（选填）"
+                onInput={e => setBindForm(prev => ({ ...prev, remark: e.detail.value }))}
+              />
+            </View>
+
             <View className={styles.modalActions}>
-              <Button
-                className={classnames(styles.btn, styles.cancel)}
-                onClick={() => setShowScanResult(false)}
-              >
-                关闭
+              <Button className={classnames(styles.btn, styles.cancel)} onClick={() => setShowBindModal(false)}>
+                取消
               </Button>
-              <Button
-                className={classnames(styles.btn, styles.confirm)}
-                onClick={() => {
-                  setShowScanResult(false);
-                  Taro.showToast({ title: '绑定成功', icon: 'success' });
-                }}
-              >
+              <Button className={classnames(styles.btn, styles.confirm)} onClick={handleBindDevice}>
                 确认绑定
               </Button>
             </View>

@@ -1,58 +1,48 @@
-import type { OverviewData, ImportantEvent, IDCOption, BizOption } from '@/types';
+import type { ImportantEvent, IDCOption, BizOption } from '@/types';
 
-export const overviewData: OverviewData = {
-  healthScore: 85,
-  healthLevel: '良好',
-  alertCount: {
-    total: 128,
-    pending: 12,
-    today: 36
+const now = new Date();
+const pad = (n: number) => String(n).padStart(2, '0');
+const fmt = (h: number, m: number = 0, s: number = 0) =>
+  `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(h)}:${pad(m)}:${pad(s)}`;
+
+export const importantEvents: ImportantEvent[] = [
+  {
+    id: 'evt001',
+    title: '订单服务CPU使用率告警',
+    level: 'P0',
+    content: '华东机房订单数据库CPU使用率连续5分钟超过90%，可能影响用户下单体验',
+    time: fmt(14, 32),
+    isTop: true,
+    alertId: 'alert001'
   },
-  hostCount: {
-    total: 256,
-    online: 248,
-    offline: 8
+  {
+    id: 'evt002',
+    title: '营销服务接口错误率上升',
+    level: 'P0',
+    content: '华东机房营销活动接口近5分钟错误率达到15%，影响用户参与活动',
+    time: fmt(11, 45),
+    isTop: true,
+    alertId: 'alert006'
   },
-  serviceCount: {
-    total: 64,
-    normal: 58,
-    abnormal: 6
+  {
+    id: 'evt003',
+    title: '支付服务响应时间过长',
+    level: 'P1',
+    content: '华南机房支付服务近10分钟平均响应时间超过800ms',
+    time: fmt(14, 15),
+    isTop: false,
+    alertId: 'alert002'
   },
-  importantEvents: [
-    {
-      id: 'evt001',
-      title: '订单服务响应延迟告警',
-      level: 'P1',
-      content: '华东机房订单服务近5分钟平均响应时间超过500ms，影响用户下单体验',
-      time: '2024-01-15 14:32:00',
-      isTop: true
-    },
-    {
-      id: 'evt002',
-      title: '数据库主从同步中断',
-      level: 'P0',
-      content: '核心数据库主从同步中断超过30分钟，存在数据不一致风险',
-      time: '2024-01-15 13:15:00',
-      isTop: true
-    },
-    {
-      id: 'evt003',
-      title: '支付服务扩容完成',
-      level: 'P3',
-      content: '支付服务已完成自动扩容，实例数从8台增加至16台，当前负载正常',
-      time: '2024-01-15 11:20:00',
-      isTop: false
-    },
-    {
-      id: 'evt004',
-      title: '华南机房网络波动',
-      level: 'P2',
-      content: '华南机房出现网络波动，部分服务访问延迟增加，正在排查中',
-      time: '2024-01-15 10:05:00',
-      isTop: false
-    }
-  ]
-};
+  {
+    id: 'evt004',
+    title: '日志服务器磁盘空间不足',
+    level: 'P2',
+    content: '华北机房日志服务器 /data 分区使用率达到85%，剩余空间不足100GB',
+    time: fmt(13, 45),
+    isTop: false,
+    alertId: 'alert003'
+  }
+];
 
 export const idcOptions: IDCOption[] = [
   { value: 'all', label: '全部机房' },
@@ -68,5 +58,6 @@ export const bizOptions: BizOption[] = [
   { value: 'pay', label: '支付业务' },
   { value: 'user', label: '用户业务' },
   { value: 'goods', label: '商品业务' },
-  { value: 'marketing', label: '营销业务' }
+  { value: 'marketing', label: '营销业务' },
+  { value: 'infra', label: '基础架构' }
 ];

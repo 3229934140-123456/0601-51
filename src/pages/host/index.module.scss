@@ -43,6 +43,14 @@
         justify-content: space-between;
         font-size: $font-size-sm;
         color: $color-text-primary;
+        border: 1rpx solid transparent;
+        transition: all $transition-fast;
+
+        &.active {
+          border-color: $color-primary;
+          background: $color-primary-bg;
+          color: $color-primary;
+        }
 
         .arrow {
           font-size: 20rpx;
@@ -50,6 +58,23 @@
           margin-left: 8rpx;
         }
       }
+    }
+  }
+
+  .resetBtn {
+    @include button-reset;
+    height: 64rpx;
+    padding: 0 $spacing-md;
+    border-radius: $radius-md;
+    font-size: $font-size-sm;
+    background: $color-error-bg;
+    color: $color-error;
+    align-self: flex-end;
+    margin-bottom: 0;
+    transition: all $transition-fast;
+
+    &:active {
+      opacity: 0.8;
     }
   }
 
