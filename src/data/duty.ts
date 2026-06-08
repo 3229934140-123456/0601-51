@@ -7,7 +7,7 @@ const fmt = (date: Date, h: number, m: number = 0, s: number = 0) =>
   `${fmtDate(date)} ${pad(h)}:${pad(m)}:${pad(s)}`;
 
 const today = new Date();
-const dutyPeople = [
+export const dutyPersons = [
   { name: '张三', phone: '138****1234', id: 'zhangsan' },
   { name: '李四', phone: '139****5678', id: 'lisi' },
   { name: '王五', phone: '137****9012', id: 'wangwu' },
@@ -24,7 +24,7 @@ const BASE_DAY_IDX = 0;
 function getDayIndex(date: Date): number {
   const timeDiff = date.getTime() - BASE_DATE.getTime();
   const dayDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-  return (dayDiff + BASE_DAY_IDX + 1000) % dutyPeople.length;
+  return (dayDiff + BASE_DAY_IDX + 1000) % dutyPersons.length;
 }
 
 function generateDutyList(days: number = 14): DutyRecord[] {
@@ -33,8 +33,8 @@ function generateDutyList(days: number = 14): DutyRecord[] {
     const d = new Date(today.getTime() + (i - 1) * 86400000);
     const dateStr = fmtDate(d);
     const dayIdx = getDayIndex(d);
-    const dayPerson = dutyPeople[dayIdx % 8];
-    const nightPerson = dutyPeople[(dayIdx + 1) % 8];
+    const dayPerson = dutyPersons[dayIdx % 8];
+    const nightPerson = dutyPersons[(dayIdx + 1) % 8];
     list.push({
       id: `d${dateStr}-day`,
       date: dateStr,
@@ -62,8 +62,8 @@ export function generateMonthDutyList(year: number, month: number): DutyRecord[]
     const d = new Date(year, month, i);
     const dateStr = fmtDate(d);
     const dayIdx = getDayIndex(d);
-    const dayPerson = dutyPeople[dayIdx % 8];
-    const nightPerson = dutyPeople[(dayIdx + 1) % 8];
+    const dayPerson = dutyPersons[dayIdx % 8];
+    const nightPerson = dutyPersons[(dayIdx + 1) % 8];
     list.push({
       id: `d${dateStr}-day`,
       date: dateStr,

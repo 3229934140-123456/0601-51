@@ -4,14 +4,14 @@ import Taro from '@tarojs/taro';
 import classnames from 'classnames';
 import type { AlertItem, AlertLevel, AlertStatus } from '@/types';
 import { useAppStore } from '@/store';
-import { alertLevelOptions, alertStatusOptions } from '@/data/alert';
+import { alertLevelOptions, alertStatusOptions, statusLabelMap } from '@/data/alert';
 import { idcOptions, bizOptions } from '@/data/overview';
 import AlertCard from '@/components/AlertCard';
 import StatusTag from '@/components/StatusTag';
 import styles from './index.module.scss';
 
 const AlertPage: React.FC = () => {
-  const { alerts, confirmAlert, transferAlert, resolveAlert } = useAppStore();
+  const { alerts, confirmAlert, transferAlert, resolveAlert, updateAlertStatus, addHandover } = useAppStore();
   const [levelFilter, setLevelFilter] = useState<AlertLevel | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [idcFilter, setIdcFilter] = useState('all');
@@ -19,6 +19,7 @@ const AlertPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showProcessModal, setShowProcessModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showProgressModal, setShowProgressModal] = useState(false);
   const [showIdcPicker, setShowIdcPicker] = useState(false);
   const [showBizPicker, setShowBizPicker] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -27,6 +28,11 @@ const AlertPage: React.FC = () => {
   const [transferRemark, setTransferRemark] = useState('');
   const [selectedPerson, setSelectedPerson] = useState('');
   const [processType, setProcessType] = useState<'confirm' | 'resolve'>('confirm');
+  const [progressType, setProgressType] = useState<AlertStatus>('investigating');
+  const [progressContent, setProgressContent] = useState('');
+  const [showHandoverModal, setShowHandoverModal] = useState(false);
+  const [handoverTo, setHandoverTo] = useState('');
+  const [handoverNextAction, setHandoverNextAction] = useState('');
 
   const handlePersons = ['张三', '李四', '王五', '赵六', '孙七'];
 
@@ -44,7 +50,11 @@ const AlertPage: React.FC = () => {
     return {
       total: filteredAlerts.length,
       pending: filteredAlerts.filter(a => a.status === 'pending').length,
-      processing: filteredAlerts.filter(a => a.status === 'confirmed' || a.status === 'processing').length,
+      processing: filteredAlerts.filter(a => 
+        a.status === 'investigating' || 
+        a.status === 'waiting_external' || 
+        a.status === 'temp_restored'
+      ).length,
       resolved: filteredAlerts.filter(a => a.status === 'resolved' || a.status === 'closed').length
     };
   }, [filteredAlerts]);
@@ -84,6 +94,15 @@ const AlertPage: React.FC = () => {
     setShowProcessModal(true);
   };
 
+  const handleProgress = (id: string) => {
+    const alert = alerts.find(a => a.id === id);
+    if (!alert) return;
+    setCurrentAlert(alert);
+    setProgressType('investigating');
+    setProgressContent('');
+    setShowProgressModal(true);
+  };
+
   const handleViewDetail = (alert: AlertItem) => {
     const freshAlert = alerts.find(a => a.id === alert.id);
     setCurrentAlert(freshAlert || alert);
@@ -101,7 +120,6 @@ const AlertPage: React.FC = () => {
       resolveAlert(currentAlert.id, processRecord);
     }
     setShowProcessModal(false);
-    setCurrentAlert(null);
     Taro.showToast({ title: '操作成功', icon: 'success' });
   };
 
@@ -112,8 +130,72 @@ const AlertPage: React.FC = () => {
     }
     transferAlert(currentAlert.id, selectedPerson, transferRemark);
     setShowTransferModal(false);
-    setCurrentAlert(null);
     Taro.showToast({ title: '转派成功', icon: 'success' });
+  };
+
+  const progressOptions = [
+    { value: 'investigating' as AlertStatus, label: '开始排查', action: '开始排查' },
+    { value: 'waiting_external' as AlertStatus, label: '等待外部支持', action: '等待外部支持' },
+    { value: 'temp_restored' as AlertStatus, label: '临时恢复', action: '临时恢复' },
+    { value: 'resolved' as AlertStatus, label: '彻底解决', action: '彻底解决' }
+  ];
+
+  const submitProgress = () => {
+    if (!currentAlert) return;
+    if (!progressContent.trim()) {
+      Taro.showToast({ title: '请填写进展说明', icon: 'none' });
+      return;
+    }
+    const option = progressOptions.find(o => o.value === progressType);
+    updateAlertStatus(currentAlert.id, progressType, option?.action || '追加进展', progressContent);
+    setShowProgressModal(false);
+    Taro.showToast({ title: '已更新', icon: 'success' });
+  };
+
+  const handleHandover = (id: string) => {
+    const alert = alerts.find(a => a.id === id);
+    if (!alert) return;
+    setCurrentAlert(alert);
+    setHandoverTo('');
+    setHandoverNextAction('');
+    setShowHandoverModal(true);
+  };
+
+  const submitHandover = () => {
+    if (!currentAlert) return;
+    if (!handoverTo) {
+      Taro.showToast({ title: '请选择接收人', icon: 'none' });
+      return;
+    }
+    if (!handoverNextAction.trim()) {
+      Taro.showToast({ title: '请填写下一步动作', icon: 'none' });
+      return;
+    }
+
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const timeStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const newItem: any = {
+      id: `h-${Date.now()}`,
+      title: `【告警交接】${currentAlert.title}`,
+      content: `告警状态：${statusLabelMap[currentAlert.status]}\n当前进展：${currentAlert.content}`,
+      status: 'pending',
+      createTime: timeStr,
+      from: '我',
+      fromId: 'currentUser',
+      to: handoverTo,
+      toId: handoverTo,
+      sourceAlertId: currentAlert.id,
+      sourceAlertTitle: currentAlert.title,
+      sourceAlertLevel: currentAlert.level,
+      alertStatus: currentAlert.status,
+      nextAction: handoverNextAction
+    };
+
+    addHandover(newItem);
+    setShowHandoverModal(false);
+    Taro.showToast({ title: '交接已创建', icon: 'success' });
   };
 
   const handleReset = () => {
@@ -201,6 +283,11 @@ const AlertPage: React.FC = () => {
                         <Text className={styles.timelineTime}>{record.time}</Text>
                       </View>
                       <Text className={styles.timelineOperator}>操作人：{record.operatorName}</Text>
+                      {record.fromStatus && record.toStatus && record.fromStatus !== record.toStatus && (
+                        <Text className={styles.timelineStatus}>
+                          状态：{statusLabelMap[record.fromStatus]} → {statusLabelMap[record.toStatus]}
+                        </Text>
+                      )}
                       {record.transferToName && (
                         <Text className={styles.timelineTransfer}>转派给：{record.transferToName}</Text>
                       )}
@@ -218,17 +305,25 @@ const AlertPage: React.FC = () => {
             )}
           </View>
 
-          {(detailAlert.status === 'pending' || detailAlert.status === 'confirmed' || detailAlert.status === 'processing') && (
+          {(detailAlert.status === 'pending' || detailAlert.status === 'investigating' || detailAlert.status === 'waiting_external' || detailAlert.status === 'temp_restored') && (
             <View className={styles.detailActions}>
               {detailAlert.status === 'pending' && (
                 <Button className={styles.actionPrimary} onClick={() => handleConfirm(detailAlert.id)}>
                   确认告警
                 </Button>
               )}
+              {detailAlert.status !== 'pending' && (
+                <Button className={styles.actionPrimary} onClick={() => handleProgress(detailAlert.id)}>
+                  追加进展
+                </Button>
+              )}
               <Button className={styles.actionSecondary} onClick={() => handleTransfer(detailAlert.id)}>
                 转派告警
               </Button>
-              {(detailAlert.status === 'confirmed' || detailAlert.status === 'processing') && (
+              <Button className={styles.actionWarning} onClick={() => handleHandover(detailAlert.id)}>
+                生成交接
+              </Button>
+              {detailAlert.status !== 'pending' && (
                 <Button className={styles.actionSuccess} onClick={() => handleResolve(detailAlert.id)}>
                   标记解决
                 </Button>
@@ -312,6 +407,103 @@ const AlertPage: React.FC = () => {
                 </Button>
                 <Button className={classnames(styles.btn, styles.confirm)} onClick={submitTransfer}>
                   确认转派
+                </Button>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {showProgressModal && currentAlert && (
+          <View className={styles.modalMask} onClick={() => setShowProgressModal(false)}>
+            <View className={styles.modalContent} onClick={e => e.stopPropagation()}>
+              <Text className={styles.modalTitle}>追加进展</Text>
+              <StatusTag type={currentAlert.level.toLowerCase()} text={currentAlert.level} />
+              <Text style={{ marginTop: '16rpx', fontSize: '28rpx', color: '#1d2129', fontWeight: 500 }}>
+                {currentAlert.title}
+              </Text>
+
+              <View className={styles.formGroup} style={{ marginTop: '32rpx' }}>
+                <Text className={styles.formLabel}>进展状态</Text>
+                <View className={styles.progressTypeList}>
+                  {progressOptions.map(option => (
+                    <View
+                      key={option.value}
+                      className={classnames(styles.progressTypeItem, { [styles.selected]: progressType === option.value })}
+                      onClick={() => setProgressType(option.value)}
+                    >
+                      <Text>{option.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              <View className={styles.formGroup}>
+                <Text className={styles.formLabel}>进展说明</Text>
+                <Textarea
+                  className={styles.formTextarea}
+                  placeholder="请输入进展说明..."
+                  value={progressContent}
+                  onInput={e => setProgressContent(e.detail.value)}
+                  maxlength={500}
+                />
+              </View>
+
+              <View className={styles.modalActions}>
+                <Button className={classnames(styles.btn, styles.cancel)} onClick={() => setShowProgressModal(false)}>
+                  取消
+                </Button>
+                <Button className={classnames(styles.btn, styles.confirm)} onClick={submitProgress}>
+                  提交进展
+                </Button>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {showHandoverModal && currentAlert && (
+          <View className={styles.modalMask} onClick={() => setShowHandoverModal(false)}>
+            <View className={styles.modalContent} onClick={e => e.stopPropagation()}>
+              <Text className={styles.modalTitle}>生成交接待办</Text>
+              <StatusTag type={currentAlert.level.toLowerCase()} text={currentAlert.level} />
+              <Text style={{ marginTop: '16rpx', fontSize: '28rpx', color: '#1d2129', fontWeight: 500 }}>
+                {currentAlert.title}
+              </Text>
+              <Text style={{ marginTop: '8rpx', fontSize: '24rpx', color: '#86909c' }}>
+                当前状态：{statusLabelMap[currentAlert.status]}
+              </Text>
+
+              <View className={styles.formGroup} style={{ marginTop: '32rpx' }}>
+                <Text className={styles.formLabel}>接收人</Text>
+                <View className={styles.personList}>
+                  {handlePersons.map(person => (
+                    <View
+                      key={person}
+                      className={classnames(styles.personItem, { [styles.selected]: handoverTo === person })}
+                      onClick={() => setHandoverTo(person)}
+                    >
+                      {person}
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              <View className={styles.formGroup}>
+                <Text className={styles.formLabel}>下一步动作</Text>
+                <Textarea
+                  className={styles.formTextarea}
+                  placeholder="请描述下一步需要做什么..."
+                  value={handoverNextAction}
+                  onInput={e => setHandoverNextAction(e.detail.value)}
+                  maxlength={500}
+                />
+              </View>
+
+              <View className={styles.modalActions}>
+                <Button className={classnames(styles.btn, styles.cancel)} onClick={() => setShowHandoverModal(false)}>
+                  取消
+                </Button>
+                <Button className={classnames(styles.btn, styles.confirm)} onClick={submitHandover}>
+                  生成交接
                 </Button>
               </View>
             </View>
@@ -405,6 +597,7 @@ const AlertPage: React.FC = () => {
                   onConfirm={handleConfirm}
                   onTransfer={handleTransfer}
                   onResolve={handleResolve}
+                  onProgress={handleProgress}
                 />
               </View>
             ))

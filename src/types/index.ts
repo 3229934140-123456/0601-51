@@ -1,6 +1,16 @@
 export type AlertLevel = 'P0' | 'P1' | 'P2' | 'P3' | 'P4';
 
-export type AlertStatus = 'pending' | 'confirmed' | 'processing' | 'resolved' | 'closed';
+export type AlertStatus = 'pending' | 'investigating' | 'waiting_external' | 'temp_restored' | 'resolved' | 'closed';
+
+export type ProgressAction = 
+  | '确认告警'
+  | '开始排查'
+  | '等待外部支持'
+  | '临时恢复'
+  | '彻底解决'
+  | '转派告警'
+  | '追加进展'
+  | '关闭告警';
 
 export type HostStatus = 'online' | 'offline' | 'warning' | 'error';
 
@@ -12,13 +22,15 @@ export type InspectionType = 'daily' | 'weekly' | 'monthly' | 'special';
 
 export interface ProcessRecord {
   id: string;
-  action: string;
+  action: ProgressAction | string;
   operator: string;
   operatorName: string;
   time: string;
   content?: string;
   transferTo?: string;
   transferToName?: string;
+  toStatus?: AlertStatus;
+  fromStatus?: AlertStatus;
 }
 
 export interface BoundDevice {
@@ -48,6 +60,7 @@ export interface AlertItem {
   resolveTime?: string;
   handler?: string;
   handlerName?: string;
+  transferCount?: number;
   processRecords: ProcessRecord[];
 }
 
@@ -138,6 +151,11 @@ export interface HandoverItem {
   to?: string;
   toId?: string;
   completeTime?: string;
+  sourceAlertId?: string;
+  sourceAlertTitle?: string;
+  sourceAlertLevel?: AlertLevel;
+  alertStatus?: AlertStatus;
+  nextAction?: string;
 }
 
 export interface ImportantEvent {

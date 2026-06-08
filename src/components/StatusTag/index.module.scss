@@ -60,9 +60,20 @@
 
   &.pending,
   &.confirmed,
+  &.investigating,
   &.maintenance {
     background-color: $color-info-bg;
     color: $color-primary;
+  }
+
+  &.waiting_external {
+    background-color: $color-warning-bg;
+    color: $color-warning;
+  }
+
+  &.temp_restored {
+    background-color: $color-success-bg;
+    color: $color-success;
   }
 
   &.closed {

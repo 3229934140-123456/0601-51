@@ -8,7 +8,8 @@ import type {
   ServiceItem,
   ServiceStatus,
   ProcessRecord,
-  BoundDevice
+  BoundDevice,
+  ProgressAction
 } from '@/types';
 import { alertList as initialAlerts } from '@/data/alert';
 import { hostList } from '@/data/host';
@@ -29,6 +30,7 @@ interface AppState {
   transferAlert: (alertId: string, transferToName: string, content?: string) => void;
   resolveAlert: (alertId: string, content: string) => void;
   addProcessRecord: (alertId: string, record: ProcessRecord) => void;
+  updateAlertStatus: (alertId: string, status: AlertItem['status'], action: string, content?: string) => void;
 
   createInspection: (inspection: InspectionItem) => void;
   updateInspectionTask: (inspectionId: string, taskId: string, updates: Partial<InspectionItem['tasks'][0]>) => void;
@@ -80,16 +82,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       operator: 'currentUser',
       operatorName: '我',
       time: now,
-      content
+      content,
+      fromStatus: 'pending',
+      toStatus: 'investigating'
     };
 
     set(state => {
+      const alert = state.alerts.find(a => a.id === alertId);
       const newAlerts = state.alerts.map(a =>
         a.id === alertId
-          ? { ...a, status: 'confirmed' as const, confirmTime: now, handler: 'currentUser', handlerName: '我', processRecords: [...a.processRecords, record] }
+          ? { ...a, status: 'investigating' as const, confirmTime: now, handler: 'currentUser', handlerName: '我', processRecords: [...a.processRecords, record] }
           : a
       );
-      const alert = newAlerts.find(a => a.id === alertId);
       const newEvents = alert
         ? state.importantEvents.map(e =>
             e.alertId === alertId || (e.title === alert.title && e.time === alert.createTime)
@@ -102,47 +106,103 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log('[Store] 确认告警:', alertId);
   },
 
+  updateAlertStatus: (alertId, status, action, content) => {
+    const now = formatTime(new Date());
+    
+    set(state => {
+      const alert = state.alerts.find(a => a.id === alertId);
+      if (!alert) return state;
+      
+      const record: ProcessRecord = {
+        id: generateId(),
+        action: action as ProgressAction | string,
+        operator: 'currentUser',
+        operatorName: '我',
+        time: now,
+        content,
+        fromStatus: alert.status,
+        toStatus: status
+      };
+
+      let updates: Partial<AlertItem> = {
+        status,
+        processRecords: [...alert.processRecords, record]
+      };
+
+      if (status === 'resolved' || status === 'closed') {
+        updates.resolveTime = now;
+      }
+
+      const newAlerts = state.alerts.map(a =>
+        a.id === alertId ? { ...a, ...updates } : a
+      );
+
+      let newEvents = state.importantEvents;
+      if (status === 'resolved' || status === 'closed') {
+        newEvents = state.importantEvents.filter(e =>
+          !(e.alertId === alertId || (e.title === alert.title && e.time === alert.createTime))
+        );
+      }
+
+      return { alerts: newAlerts, importantEvents: newEvents };
+    });
+    console.log('[Store] 更新告警状态:', alertId, '→', status);
+  },
+
   transferAlert: (alertId, transferToName, content = '') => {
     const now = formatTime(new Date());
-    const record: ProcessRecord = {
-      id: generateId(),
-      action: '转派告警',
-      operator: 'currentUser',
-      operatorName: '我',
-      time: now,
-      transferTo: transferToName.toLowerCase(),
-      transferToName,
-      content
-    };
+    
+    set(state => {
+      const alert = state.alerts.find(a => a.id === alertId);
+      if (!alert) return state;
+      
+      const record: ProcessRecord = {
+        id: generateId(),
+        action: '转派告警',
+        operator: 'currentUser',
+        operatorName: '我',
+        time: now,
+        transferTo: transferToName.toLowerCase(),
+        transferToName,
+        content,
+        fromStatus: alert.status,
+        toStatus: alert.status
+      };
 
-    set(state => ({
-      alerts: state.alerts.map(a =>
-        a.id === alertId
-          ? { ...a, handler: transferToName.toLowerCase(), handlerName: transferToName, processRecords: [...a.processRecords, record] }
-          : a
-      )
-    }));
+      return {
+        alerts: state.alerts.map(a =>
+          a.id === alertId
+            ? { ...a, handler: transferToName.toLowerCase(), handlerName: transferToName, processRecords: [...a.processRecords, record] }
+            : a
+        )
+      };
+    });
     console.log('[Store] 转派告警:', alertId, '给', transferToName);
   },
 
   resolveAlert: (alertId, content) => {
     const now = formatTime(new Date());
-    const record: ProcessRecord = {
-      id: generateId(),
-      action: '处理完成',
-      operator: 'currentUser',
-      operatorName: '我',
-      time: now,
-      content
-    };
-
+    
     set(state => {
+      const alert = state.alerts.find(a => a.id === alertId);
+      if (!alert) return state;
+      
+      const record: ProcessRecord = {
+        id: generateId(),
+        action: '彻底解决',
+        operator: 'currentUser',
+        operatorName: '我',
+        time: now,
+        content,
+        fromStatus: alert.status,
+        toStatus: 'resolved'
+      };
+
       const newAlerts = state.alerts.map(a =>
         a.id === alertId
           ? { ...a, status: 'resolved' as const, resolveTime: now, processRecords: [...a.processRecords, record] }
           : a
       );
-      const alert = newAlerts.find(a => a.id === alertId);
       const newEvents = alert
         ? state.importantEvents.filter(e =>
             !(e.alertId === alertId || (e.title === alert.title && e.time === alert.createTime))
@@ -252,7 +312,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       total: alerts.length,
       pending: alerts.filter(a => a.status === 'pending').length,
       today: alerts.filter(a => isToday(a.createTime)).length,
-      processing: alerts.filter(a => a.status === 'confirmed' || a.status === 'processing').length,
+      processing: alerts.filter(a => 
+        a.status === 'investigating' || 
+        a.status === 'waiting_external' || 
+        a.status === 'temp_restored'
+      ).length,
       resolved: alerts.filter(a => a.status === 'resolved' || a.status === 'closed').length
     };
   },

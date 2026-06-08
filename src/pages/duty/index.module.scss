@@ -645,3 +645,143 @@
     }
   }
 }
+
+.myTodoHeader {
+  margin-bottom: $spacing-md;
+
+  .sectionTitle {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
+  }
+}
+
+.todoStats {
+  display: flex;
+  gap: $spacing-md;
+  margin-bottom: $spacing-lg;
+
+  .todoStatItem {
+    flex: 1;
+    background: $color-bg-card;
+    border-radius: $radius-lg;
+    padding: $spacing-lg;
+    text-align: center;
+
+    .todoStatNum {
+      display: block;
+      font-size: 48rpx;
+      font-weight: $font-weight-bold;
+      color: $color-primary;
+      line-height: 1.2;
+    }
+
+    .todoStatLabel {
+      display: block;
+      font-size: $font-size-sm;
+      color: $color-text-secondary;
+      margin-top: $spacing-xs;
+    }
+  }
+}
+
+.todoSection {
+  margin-bottom: $spacing-lg;
+
+  .sectionSubTitle {
+    display: block;
+    font-size: $font-size-md;
+    font-weight: $font-weight-semibold;
+    color: $color-text-primary;
+    margin-bottom: $spacing-md;
+  }
+}
+
+.alertMiniList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.alertMiniCard {
+  background: $color-bg-card;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+
+  .alertMiniHeader {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-sm;
+
+    .alertMiniTitle {
+      flex: 1;
+      font-size: $font-size-md;
+      font-weight: $font-weight-medium;
+      color: $color-text-primary;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .alertMiniMeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: $font-size-sm;
+    color: $color-text-secondary;
+  }
+}
+
+.emptySmall {
+  padding: $spacing-xl 0;
+  text-align: center;
+  color: $color-text-tertiary;
+  font-size: $font-size-sm;
+}
+
+.sourceAlert {
+  margin-top: $spacing-md;
+  padding: $spacing-md;
+  background: $color-warning-bg;
+  border-radius: $radius-md;
+
+  .sourceAlertLabel {
+    display: block;
+    font-size: $font-size-xs;
+    color: $color-text-secondary;
+    margin-bottom: $spacing-xs;
+  }
+
+  .sourceAlertInfo {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-xs;
+
+    .sourceAlertTitle {
+      flex: 1;
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      color: $color-text-primary;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .sourceAlertStatus {
+    display: block;
+    font-size: $font-size-xs;
+    color: $color-text-secondary;
+    margin-bottom: $spacing-xs;
+  }
+
+  .sourceAlertNext {
+    display: block;
+    font-size: $font-size-xs;
+    color: $color-warning;
+    font-weight: $font-weight-medium;
+  }
+}

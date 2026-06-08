@@ -335,6 +335,12 @@
           margin-bottom: 4rpx;
         }
 
+        .timelineStatus {
+          font-size: $font-size-xs;
+          color: $color-primary;
+          margin-bottom: 4rpx;
+        }
+
         .timelineRemark {
           font-size: $font-size-xs;
           color: $color-text-tertiary;
@@ -373,7 +379,8 @@
 
   .actionPrimary,
   .actionSecondary,
-  .actionSuccess {
+  .actionSuccess,
+  .actionWarning {
     @include button-reset;
     flex: 1;
     height: $button-height-lg;
@@ -394,8 +401,14 @@
   }
 
   .actionSecondary {
-    background: $color-warning-bg;
-    color: $color-warning;
+    background: $color-bg-page;
+    color: $color-text-secondary;
+    border: 2rpx solid $color-border;
+  }
+
+  .actionWarning {
+    background: $color-warning;
+    color: $color-text-white;
   }
 
   .actionSuccess {
@@ -471,6 +484,29 @@
         &.selected {
           background: $color-primary-bg;
           color: $color-primary;
+          font-weight: $font-weight-medium;
+        }
+      }
+    }
+
+    .progressTypeList {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $spacing-sm;
+
+      .progressTypeItem {
+        padding: 16rpx 24rpx;
+        border-radius: $radius-md;
+        font-size: $font-size-sm;
+        background: $color-bg-page;
+        color: $color-text-secondary;
+        border: 2rpx solid transparent;
+        transition: all $transition-fast;
+
+        &.selected {
+          background: $color-primary-bg;
+          color: $color-primary;
+          border-color: $color-primary;
           font-weight: $font-weight-medium;
         }
       }

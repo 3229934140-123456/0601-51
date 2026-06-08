@@ -113,32 +113,26 @@ const InspectionPage: React.FC = () => {
 
   const choosePhoto = (inspectionId: string) => {
     Taro.chooseImage({
-      count: 1,
+      count: 9,
       sizeType: ['compressed'],
       sourceType: ['camera', 'album'],
       success: (res) => {
-        const tempFilePath = res.tempFilePaths?.[0] || '';
-        if (tempFilePath) {
-          addInspectionPhoto(inspectionId, tempFilePath);
+        const tempFilePaths = res.tempFilePaths || [];
+        if (tempFilePaths.length > 0) {
+          tempFilePaths.forEach(photoUrl => {
+            addInspectionPhoto(inspectionId, photoUrl);
+          });
           if (currentInspection && currentInspection.id === inspectionId) {
             setCurrentInspection(prev => prev ? {
               ...prev,
-              photos: [...prev.photos, tempFilePath]
+              photos: [...prev.photos, ...tempFilePaths]
             } : null);
           }
-          Taro.showToast({ title: '照片已添加', icon: 'success' });
+          Taro.showToast({ title: `已添加${tempFilePaths.length}张照片`, icon: 'success' });
         }
       },
       fail: () => {
-        const mockUrl = `https://picsum.photos/seed/${Date.now()}/400/400`;
-        addInspectionPhoto(inspectionId, mockUrl);
-        if (currentInspection && currentInspection.id === inspectionId) {
-          setCurrentInspection(prev => prev ? {
-            ...prev,
-            photos: [...prev.photos, mockUrl]
-          } : null);
-        }
-        Taro.showToast({ title: '照片已添加', icon: 'success' });
+        Taro.showToast({ title: '已取消或选择失败', icon: 'none' });
       }
     });
   };
@@ -150,12 +144,12 @@ const InspectionPage: React.FC = () => {
       sourceType: ['camera', 'album'],
       success: (res) => {
         const tempFilePath = res.tempFilePaths?.[0] || '';
-        setBindForm(prev => ({ ...prev, photoUrl: tempFilePath }));
+        if (tempFilePath) {
+          setBindForm(prev => ({ ...prev, photoUrl: tempFilePath }));
+        }
       },
       fail: () => {
-        const mockUrl = `https://picsum.photos/seed/${Date.now()}/400/400`;
-        setBindForm(prev => ({ ...prev, photoUrl: mockUrl }));
-        Taro.showToast({ title: '照片已添加', icon: 'success' });
+        Taro.showToast({ title: '已取消或选择失败', icon: 'none' });
       }
     });
   };
@@ -168,19 +162,16 @@ const InspectionPage: React.FC = () => {
       sourceType: ['camera', 'album'],
       success: (res) => {
         const tempFilePath = res.tempFilePaths?.[0] || '';
-        updateInspectionTask(currentInspection.id, taskId, { photoUrl: tempFilePath });
-        setCurrentInspection(prev => prev ? {
-          ...prev,
-          tasks: prev.tasks.map(t => t.id === taskId ? { ...t, photoUrl: tempFilePath } : t)
-        } : null);
+        if (tempFilePath) {
+          updateInspectionTask(currentInspection.id, taskId, { photoUrl: tempFilePath });
+          setCurrentInspection(prev => prev ? {
+            ...prev,
+            tasks: prev.tasks.map(t => t.id === taskId ? { ...t, photoUrl: tempFilePath } : t)
+          } : null);
+        }
       },
       fail: () => {
-        const mockUrl = `https://picsum.photos/seed/${taskId}/300/300`;
-        updateInspectionTask(currentInspection.id, taskId, { photoUrl: mockUrl });
-        setCurrentInspection(prev => prev ? {
-          ...prev,
-          tasks: prev.tasks.map(t => t.id === taskId ? { ...t, photoUrl: mockUrl } : t)
-        } : null);
+        Taro.showToast({ title: '已取消或选择失败', icon: 'none' });
       }
     });
   };
@@ -311,14 +302,17 @@ const InspectionPage: React.FC = () => {
     other: '其他'
   };
 
-  const previewPhoto = (url: string) => {
+  const previewPhoto = (current: string, urls: string[]) => {
     Taro.previewImage({
-      current: url,
-      urls: [url]
+      current,
+      urls
     });
   };
 
   if (showDetail && currentInspection) {
+    const devicePhotos = currentInspection.boundDevices?.filter(d => d.photoUrl).map(d => d.photoUrl!) || [];
+    const taskPhotos = currentInspection.tasks.filter(t => t.photoUrl).map(t => t.photoUrl!);
+
     return (
       <View className={classnames(styles.pageContainer, styles.detailPage)}>
         <ScrollView scrollY style={{ height: '100vh', paddingBottom: '160rpx' }}>
@@ -376,7 +370,7 @@ const InspectionPage: React.FC = () => {
               </Text>
               <View className={styles.photoGrid}>
                 {currentInspection.photos.map((photo, index) => (
-                  <View key={index} className={styles.photoItem} onClick={() => previewPhoto(photo)}>
+                  <View key={index} className={styles.photoItem} onClick={() => previewPhoto(photo, currentInspection.photos)}>
                     <Image src={photo} mode="aspectFill" className={styles.photoImg} />
                   </View>
                 ))}
@@ -418,7 +412,7 @@ const InspectionPage: React.FC = () => {
                     <Text className={styles.deviceTime}>绑定时间：{device.bindTime}</Text>
                   </View>
                   {device.photoUrl && (
-                    <View className={styles.devicePhoto} onClick={() => previewPhoto(device.photoUrl!)}>
+                    <View className={styles.devicePhoto} onClick={() => previewPhoto(device.photoUrl!, devicePhotos)}>
                       <Image src={device.photoUrl} mode="aspectFill" />
                     </View>
                   )}
@@ -468,7 +462,7 @@ const InspectionPage: React.FC = () => {
                       {task.remark && <Text className={styles.remarkText}>{task.remark}</Text>}
                       <View className={styles.taskPhotoWrap}>
                         {task.photoUrl ? (
-                          <View className={styles.taskPhoto} onClick={() => previewPhoto(task.photoUrl!)}>
+                          <View className={styles.taskPhoto} onClick={() => previewPhoto(task.photoUrl!, taskPhotos)}>
                             <Image src={task.photoUrl} mode="aspectFill" />
                           </View>
                         ) : (
@@ -755,7 +749,7 @@ const InspectionPage: React.FC = () => {
               <Text className={styles.formLabel}>现场照片</Text>
               <View className={styles.bindPhotoWrap}>
                 {bindForm.photoUrl ? (
-                  <View className={styles.bindPhotoPreview} onClick={() => previewPhoto(bindForm.photoUrl)}>
+                  <View className={styles.bindPhotoPreview} onClick={() => previewPhoto(bindForm.photoUrl, [bindForm.photoUrl])}>
                     <Image src={bindForm.photoUrl} mode="aspectFill" />
                     <View className={styles.bindPhotoRemove} onClick={(e) => {
                       e.stopPropagation();

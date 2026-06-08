@@ -2,15 +2,17 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, Button, Input, Textarea } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import classnames from 'classnames';
-import type { DutyRecord, HandoverItem } from '@/types';
+import type { DutyRecord, HandoverItem, AlertItem } from '@/types';
 import { useAppStore } from '@/store';
-import { generateMonthDutyList } from '@/data/duty';
+import { generateMonthDutyList, dutyPersons } from '@/data/duty';
+import { statusLabelMap } from '@/data/alert';
 import StatusTag from '@/components/StatusTag';
+import AlertCard from '@/components/AlertCard';
 import styles from './index.module.scss';
 
 const DutyPage: React.FC = () => {
-  const { handovers, addHandover, completeHandover } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'schedule' | 'handover'>('schedule');
+  const { handovers, addHandover, completeHandover, alerts } = useAppStore();
+  const [activeTab, setActiveTab] = useState<'schedule' | 'handover' | 'mytodo'>('schedule');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -22,6 +24,8 @@ const DutyPage: React.FC = () => {
     to: '张三',
     toId: 'zhangsan'
   });
+
+  const currentUser = { name: '张三', id: 'zhangsan' };
 
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -137,6 +141,20 @@ const DutyPage: React.FC = () => {
 
   const pendingCount = handovers.filter(h => h.status === 'pending').length;
 
+  const myAlerts = useMemo(() => {
+    return alerts.filter(a => 
+      a.handler === currentUser.id && 
+      a.status !== 'resolved' && 
+      a.status !== 'closed'
+    );
+  }, [alerts, currentUser.id]);
+
+  const myHandovers = useMemo(() => {
+    return handovers.filter(h => h.to === currentUser.name && h.status === 'pending');
+  }, [handovers, currentUser.name]);
+
+  const myTodoCount = myAlerts.length + myHandovers.length;
+
   const receiverOptions = [
     { value: 'zhangsan', label: '张三' },
     { value: 'lisi', label: '李四' },
@@ -173,6 +191,15 @@ const DutyPage: React.FC = () => {
           onClick={() => setActiveTab('schedule')}
         >
           值班排班
+        </View>
+        <View
+          className={classnames(styles.tabItem, { [styles.active]: activeTab === 'mytodo' })}
+          onClick={() => setActiveTab('mytodo')}
+        >
+          我的待办
+          {myTodoCount > 0 && (
+            <Text className={styles.badge}>{myTodoCount}</Text>
+          )}
         </View>
         <View
           className={classnames(styles.tabItem, { [styles.active]: activeTab === 'handover' })}
@@ -324,6 +351,106 @@ const DutyPage: React.FC = () => {
             </>
           )}
 
+          {activeTab === 'mytodo' && (
+            <>
+              <View className={styles.myTodoHeader}>
+                <Text className={styles.sectionTitle}>
+                  我的待办
+                  <Text style={{ fontSize: '24rpx', color: '#86909c', marginLeft: '16rpx', fontWeight: 'normal' }}>
+                    当前身份：{currentUser.name}
+                  </Text>
+                </Text>
+              </View>
+
+              <View className={styles.todoStats}>
+                <View className={styles.todoStatItem}>
+                  <Text className={styles.todoStatNum}>{myAlerts.length}</Text>
+                  <Text className={styles.todoStatLabel}>待处理告警</Text>
+                </View>
+                <View className={styles.todoStatItem}>
+                  <Text className={styles.todoStatNum}>{myHandovers.length}</Text>
+                  <Text className={styles.todoStatLabel}>交接事项</Text>
+                </View>
+              </View>
+
+              <View className={styles.todoSection}>
+                <Text className={styles.sectionSubTitle}>待处理告警</Text>
+                {myAlerts.length > 0 ? (
+                  <View className={styles.alertMiniList}>
+                    {myAlerts.map(alert => (
+                      <View key={alert.id} className={styles.alertMiniCard}>
+                        <View className={styles.alertMiniHeader}>
+                          <StatusTag type={alert.level.toLowerCase()} text={alert.level} />
+                          <Text className={styles.alertMiniTitle}>{alert.title}</Text>
+                        </View>
+                        <View className={styles.alertMiniMeta}>
+                          <Text>{alert.hostName}</Text>
+                          <StatusTag type={alert.status} text={statusLabelMap[alert.status]} />
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View className={styles.emptySmall}>
+                    <Text>暂无待处理告警</Text>
+                  </View>
+                )}
+              </View>
+
+              <View className={styles.todoSection}>
+                <Text className={styles.sectionSubTitle}>待接交接</Text>
+                {myHandovers.length > 0 ? (
+                  myHandovers.map(item => (
+                    <View key={item.id} className={classnames(styles.handoverCard, styles[item.status])}>
+                      <View className={styles.cardHeader}>
+                        <Text className={styles.cardTitle}>{item.title}</Text>
+                        <StatusTag type={item.status} text={item.status === 'pending' ? '待办' : '已完成'} />
+                      </View>
+                      <View className={styles.cardContent}>{item.content}</View>
+                      {item.sourceAlertTitle && (
+                        <View className={styles.sourceAlert}>
+                          <Text className={styles.sourceAlertLabel}>来源告警：</Text>
+                          <View className={styles.sourceAlertInfo}>
+                            <StatusTag type={item.sourceAlertLevel?.toLowerCase()} text={item.sourceAlertLevel} />
+                            <Text className={styles.sourceAlertTitle}>{item.sourceAlertTitle}</Text>
+                          </View>
+                          {item.alertStatus && (
+                            <Text className={styles.sourceAlertStatus}>
+                              当前状态：{statusLabelMap[item.alertStatus]}
+                            </Text>
+                          )}
+                          {item.nextAction && (
+                            <Text className={styles.sourceAlertNext}>下一步：{item.nextAction}</Text>
+                          )}
+                        </View>
+                      )}
+                      <View className={styles.cardFooter}>
+                        <View className={styles.fromInfo}>
+                          <Text>交接人：{item.from}</Text>
+                        </View>
+                        <Text className={styles.time}>{item.createTime}</Text>
+                      </View>
+                      {item.status === 'pending' && (
+                        <View style={{ marginTop: '24rpx', textAlign: 'right' }}>
+                          <Button
+                            className={styles.actionBtn}
+                            onClick={() => markHandoverDone(item.id)}
+                          >
+                            标记完成
+                          </Button>
+                        </View>
+                      )}
+                    </View>
+                  ))
+                ) : (
+                  <View className={styles.emptySmall}>
+                    <Text>暂无待接交接</Text>
+                  </View>
+                )}
+              </View>
+            </>
+          )}
+
           {activeTab === 'handover' && (
             <>
               <View className={styles.handoverHeader}>
@@ -351,6 +478,23 @@ const DutyPage: React.FC = () => {
                         />
                       </View>
                       <View className={styles.cardContent}>{item.content}</View>
+                      {item.sourceAlertTitle && (
+                        <View className={styles.sourceAlert}>
+                          <Text className={styles.sourceAlertLabel}>来源告警：</Text>
+                          <View className={styles.sourceAlertInfo}>
+                            <StatusTag type={item.sourceAlertLevel?.toLowerCase()} text={item.sourceAlertLevel} />
+                            <Text className={styles.sourceAlertTitle}>{item.sourceAlertTitle}</Text>
+                          </View>
+                          {item.alertStatus && (
+                            <Text className={styles.sourceAlertStatus}>
+                              当前状态：{statusLabelMap[item.alertStatus]}
+                            </Text>
+                          )}
+                          {item.nextAction && (
+                            <Text className={styles.sourceAlertNext}>下一步：{item.nextAction}</Text>
+                          )}
+                        </View>
+                      )}
                       <View className={styles.cardFooter}>
                         <View className={styles.fromInfo}>
                           <Text>交接人：{item.from}</Text>

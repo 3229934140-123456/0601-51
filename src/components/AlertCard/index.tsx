@@ -3,6 +3,7 @@ import { View, Text, Button } from '@tarojs/components';
 import classnames from 'classnames';
 import type { AlertItem } from '@/types';
 import StatusTag from '@/components/StatusTag';
+import { statusLabelMap } from '@/data/alert';
 import styles from './index.module.scss';
 
 interface AlertCardProps {
@@ -10,16 +11,11 @@ interface AlertCardProps {
   onConfirm?: (id: string) => void;
   onTransfer?: (id: string) => void;
   onResolve?: (id: string) => void;
+  onProgress?: (id: string) => void;
 }
 
-const AlertCard: React.FC<AlertCardProps> = ({ alert, onConfirm, onTransfer, onResolve }) => {
-  const statusTextMap: Record<string, string> = {
-    pending: '待处理',
-    confirmed: '已确认',
-    processing: '处理中',
-    resolved: '已解决',
-    closed: '已关闭'
-  };
+const AlertCard: React.FC<AlertCardProps> = ({ alert, onConfirm, onTransfer, onResolve, onProgress }) => {
+  const isActive = alert.status === 'pending' || alert.status === 'investigating' || alert.status === 'waiting_external' || alert.status === 'temp_restored';
 
   return (
     <View className={classnames(styles.alertCard, styles[alert.level.toLowerCase()])}>
@@ -44,7 +40,7 @@ const AlertCard: React.FC<AlertCardProps> = ({ alert, onConfirm, onTransfer, onR
       </View>
       <View className={styles.footer}>
         <View className={styles.time}>
-          <StatusTag type={alert.status} text={statusTextMap[alert.status]} />
+          <StatusTag type={alert.status} text={statusLabelMap[alert.status]} />
           <Text style={{ marginLeft: '16rpx', fontSize: '24rpx', color: '#86909c' }}>{alert.createTime}</Text>
         </View>
         <View className={styles.actions}>
@@ -64,21 +60,21 @@ const AlertCard: React.FC<AlertCardProps> = ({ alert, onConfirm, onTransfer, onR
               </Button>
             </>
           )}
-          {alert.status === 'confirmed' && (
-            <Button
-              className={classnames(styles.actionBtn, styles.primary)}
-              onClick={() => onResolve?.(alert.id)}
-            >
-              处理
-            </Button>
-          )}
-          {alert.status === 'processing' && (
-            <Button
-              className={classnames(styles.actionBtn, styles.primary)}
-              onClick={() => onResolve?.(alert.id)}
-            >
-              标记解决
-            </Button>
+          {(alert.status === 'investigating' || alert.status === 'waiting_external' || alert.status === 'temp_restored') && (
+            <>
+              <Button
+                className={classnames(styles.actionBtn, styles.default)}
+                onClick={() => onTransfer?.(alert.id)}
+              >
+                转派
+              </Button>
+              <Button
+                className={classnames(styles.actionBtn, styles.primary)}
+                onClick={() => onProgress?.(alert.id)}
+              >
+                进展
+              </Button>
+            </>
           )}
         </View>
       </View>
