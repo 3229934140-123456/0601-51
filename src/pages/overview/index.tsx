@@ -7,13 +7,13 @@ import StatusTag from '@/components/StatusTag';
 import styles from './index.module.scss';
 
 const OverviewPage: React.FC = () => {
-  const { importantEvents, getHealthScore, getAlertStats, getHostStats, getServiceStats } = useAppStore();
+  const { importantEvents, alerts, hosts, services, getHealthScore, getAlertStats, getHostStats, getServiceStats } = useAppStore();
   const [refreshing, setRefreshing] = useState(false);
 
-  const healthScore = useMemo(() => getHealthScore(), [getHealthScore]);
-  const alertStats = useMemo(() => getAlertStats(), [getAlertStats]);
-  const hostStats = useMemo(() => getHostStats(), [getHostStats]);
-  const serviceStats = useMemo(() => getServiceStats(), [getServiceStats]);
+  const healthScore = useMemo(() => getHealthScore(), [alerts, hosts, services]);
+  const alertStats = useMemo(() => getAlertStats(), [alerts]);
+  const hostStats = useMemo(() => getHostStats(), [hosts]);
+  const serviceStats = useMemo(() => getServiceStats(), [services]);
 
   const healthLevel = useMemo(() => {
     if (healthScore >= 90) return '优秀';

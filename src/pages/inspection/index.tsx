@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, Button, Image, Input } from '@tarojs/components';
+import { View, Text, ScrollView, Button, Image, Input, Textarea } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import classnames from 'classnames';
 import type { InspectionItem, InspectionTask, BoundDevice } from '@/types';
@@ -10,14 +10,23 @@ import StatusTag from '@/components/StatusTag';
 import styles from './index.module.scss';
 
 const InspectionPage: React.FC = () => {
-  const { inspections, createInspection, updateInspectionTask, bindDevice, completeInspection } = useAppStore();
+  const {
+    inspections,
+    createInspection,
+    updateInspectionTask,
+    bindDevice,
+    addInspectionPhoto,
+    completeInspection
+  } = useAppStore();
 
   const [currentInspection, setCurrentInspection] = useState<InspectionItem | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBindModal, setShowBindModal] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [selectedInspectionForBind, setSelectedInspectionForBind] = useState<InspectionItem | null>(null);
+  const [selectedInspectionForPhoto, setSelectedInspectionForPhoto] = useState<InspectionItem | null>(null);
 
   const [formData, setFormData] = useState({
     idcKey: 'hd',
@@ -31,7 +40,8 @@ const InspectionPage: React.FC = () => {
     deviceId: '',
     deviceName: '',
     deviceType: 'server',
-    remark: ''
+    remark: '',
+    photoUrl: ''
   });
 
   const handleRefresh = useCallback(() => {
@@ -43,7 +53,8 @@ const InspectionPage: React.FC = () => {
   }, []);
 
   const startInspection = (item: InspectionItem) => {
-    setCurrentInspection(item);
+    const freshItem = inspections.find(i => i.id === item.id);
+    setCurrentInspection(freshItem || item);
     setShowDetail(true);
   };
 
@@ -60,7 +71,7 @@ const InspectionPage: React.FC = () => {
     }
     if (pendingOrProcessing.length === 1) {
       setSelectedInspectionForBind(pendingOrProcessing[0]);
-      setBindForm(prev => ({ ...prev, deviceId: `DEV-${Date.now().toString().slice(-6)}` }));
+      setBindForm(prev => ({ ...prev, deviceId: `DEV-${Date.now().toString().slice(-6)}`, photoUrl: '' }));
       setShowBindModal(true);
       return;
     }
@@ -71,8 +82,80 @@ const InspectionPage: React.FC = () => {
       success: (res) => {
         const selected = pendingOrProcessing[res.tapIndex];
         setSelectedInspectionForBind(selected);
-        setBindForm(prev => ({ ...prev, deviceId: `DEV-${Date.now().toString().slice(-6)}` }));
+        setBindForm(prev => ({ ...prev, deviceId: `DEV-${Date.now().toString().slice(-6)}`, photoUrl: '' }));
         setShowBindModal(true);
+      }
+    });
+  };
+
+  const handlePhotoEntry = () => {
+    const pendingOrProcessing = inspections.filter(i => i.status !== 'completed');
+    if (pendingOrProcessing.length === 0) {
+      Taro.showToast({ title: '暂无进行中的巡检任务', icon: 'none' });
+      return;
+    }
+    if (pendingOrProcessing.length === 1) {
+      setSelectedInspectionForPhoto(pendingOrProcessing[0]);
+      choosePhoto(pendingOrProcessing[0].id);
+      return;
+    }
+
+    const options = pendingOrProcessing.map(i => i.title);
+    Taro.showActionSheet({
+      itemList: options,
+      success: (res) => {
+        const selected = pendingOrProcessing[res.tapIndex];
+        setSelectedInspectionForPhoto(selected);
+        choosePhoto(selected.id);
+      }
+    });
+  };
+
+  const choosePhoto = (inspectionId: string) => {
+    Taro.chooseImage({
+      count: 1,
+      sizeType: ['compressed'],
+      sourceType: ['camera', 'album'],
+      success: (res) => {
+        const tempFilePath = res.tempFilePaths?.[0] || '';
+        if (tempFilePath) {
+          addInspectionPhoto(inspectionId, tempFilePath);
+          if (currentInspection && currentInspection.id === inspectionId) {
+            setCurrentInspection(prev => prev ? {
+              ...prev,
+              photos: [...prev.photos, tempFilePath]
+            } : null);
+          }
+          Taro.showToast({ title: '照片已添加', icon: 'success' });
+        }
+      },
+      fail: () => {
+        const mockUrl = `https://picsum.photos/seed/${Date.now()}/400/400`;
+        addInspectionPhoto(inspectionId, mockUrl);
+        if (currentInspection && currentInspection.id === inspectionId) {
+          setCurrentInspection(prev => prev ? {
+            ...prev,
+            photos: [...prev.photos, mockUrl]
+          } : null);
+        }
+        Taro.showToast({ title: '照片已添加', icon: 'success' });
+      }
+    });
+  };
+
+  const handleBindDevicePhoto = () => {
+    Taro.chooseImage({
+      count: 1,
+      sizeType: ['compressed'],
+      sourceType: ['camera', 'album'],
+      success: (res) => {
+        const tempFilePath = res.tempFilePaths?.[0] || '';
+        setBindForm(prev => ({ ...prev, photoUrl: tempFilePath }));
+      },
+      fail: () => {
+        const mockUrl = `https://picsum.photos/seed/${Date.now()}/400/400`;
+        setBindForm(prev => ({ ...prev, photoUrl: mockUrl }));
+        Taro.showToast({ title: '照片已添加', icon: 'success' });
       }
     });
   };
@@ -92,7 +175,7 @@ const InspectionPage: React.FC = () => {
         } : null);
       },
       fail: () => {
-        const mockUrl = 'https://picsum.photos/id/3/300/300';
+        const mockUrl = `https://picsum.photos/seed/${taskId}/300/300`;
         updateInspectionTask(currentInspection.id, taskId, { photoUrl: mockUrl });
         setCurrentInspection(prev => prev ? {
           ...prev,
@@ -181,19 +264,31 @@ const InspectionPage: React.FC = () => {
       return;
     }
 
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const bindTimeStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
     const device: BoundDevice = {
       id: `dev-${Date.now()}`,
       deviceId: bindForm.deviceId,
       deviceName: bindForm.deviceName,
-      deviceType: bindForm.deviceType as any,
-      bindTime: new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'),
-      photoUrl: '',
+      deviceType: bindForm.deviceType,
+      bindTime: bindTimeStr,
+      photoUrl: bindForm.photoUrl || undefined,
       remark: bindForm.remark
     };
 
     bindDevice(selectedInspectionForBind.id, device);
+
+    if (currentInspection && currentInspection.id === selectedInspectionForBind.id) {
+      setCurrentInspection(prev => prev ? {
+        ...prev,
+        boundDevices: [...prev.boundDevices, device]
+      } : null);
+    }
+
     setShowBindModal(false);
-    setBindForm({ deviceId: '', deviceName: '', deviceType: 'server', remark: '' });
+    setBindForm({ deviceId: '', deviceName: '', deviceType: 'server', remark: '', photoUrl: '' });
     setSelectedInspectionForBind(null);
     Taro.showToast({ title: '设备绑定成功', icon: 'success' });
   };
@@ -216,12 +311,27 @@ const InspectionPage: React.FC = () => {
     other: '其他'
   };
 
+  const previewPhoto = (url: string) => {
+    Taro.previewImage({
+      current: url,
+      urls: [url]
+    });
+  };
+
   if (showDetail && currentInspection) {
     return (
       <View className={classnames(styles.pageContainer, styles.detailPage)}>
         <ScrollView scrollY style={{ height: '100vh', paddingBottom: '160rpx' }}>
           <View className={styles.detailHeader}>
-            <Text className={styles.detailTitle}>{currentInspection.title}</Text>
+            <View className={styles.detailBack} onClick={goBack}>
+              ‹ 返回
+            </View>
+            <Text className={styles.detailTitle}>巡检详情</Text>
+            <View style={{ width: '80rpx' }} />
+          </View>
+
+          <View className={styles.detailInfoCard}>
+            <Text className={styles.detailInspectionTitle}>{currentInspection.title}</Text>
             <View className={styles.detailMeta}>
               <View className={styles.metaItem}>
                 <Text className={styles.label}>机房：</Text>
@@ -239,107 +349,142 @@ const InspectionPage: React.FC = () => {
                 <Text className={styles.label}>巡检员：</Text>
                 <Text className={styles.value}>{currentInspection.inspector || '待分配'}</Text>
               </View>
+              <View className={styles.metaItem}>
+                <Text className={styles.label}>计划时间：</Text>
+                <Text className={styles.value}>{currentInspection.planTime || '-'}</Text>
+              </View>
             </View>
           </View>
 
-          <View style={{ padding: '0 32rpx', marginBottom: '24rpx' }}>
-            <View style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16rpx' }}>
+          <View className={styles.progressSection}>
+            <View className={styles.progressHeader}>
               <Text style={{ fontSize: '28rpx', color: '#4e5969' }}>巡检进度</Text>
               <Text style={{ fontSize: '28rpx', fontWeight: 500, color: '#165dff' }}>{progress}%</Text>
             </View>
-            <View style={{ height: '12rpx', background: '#f2f3f5', borderRadius: '999rpx', overflow: 'hidden' }}>
-              <View style={{ height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg, #165dff, #4080ff)', borderRadius: '999rpx' }} />
+            <View className={styles.progressBar}>
+              <View className={styles.progressFill} style={{ width: `${progress}%` }} />
             </View>
+            <Text className={styles.progressText}>
+              已完成 {completedCount} / {totalCount} 项
+            </Text>
           </View>
 
+          {currentInspection.photos && currentInspection.photos.length > 0 && (
+            <View className={styles.photoSection}>
+              <Text className={styles.sectionTitle}>
+                现场照片 ({currentInspection.photos.length})
+              </Text>
+              <View className={styles.photoGrid}>
+                {currentInspection.photos.map((photo, index) => (
+                  <View key={index} className={styles.photoItem} onClick={() => previewPhoto(photo)}>
+                    <Image src={photo} mode="aspectFill" className={styles.photoImg} />
+                  </View>
+                ))}
+                {currentInspection.status !== 'completed' && (
+                  <View className={styles.photoAddBtn} onClick={() => choosePhoto(currentInspection.id)}>
+                    <Text className={styles.photoAddIcon}>+</Text>
+                    <Text className={styles.photoAddText}>添加照片</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
+          {currentInspection.status !== 'completed' && (!currentInspection.photos || currentInspection.photos.length === 0) && (
+            <View className={styles.photoSection}>
+              <Text className={styles.sectionTitle}>现场照片</Text>
+              <View className={styles.photoEmpty} onClick={() => choosePhoto(currentInspection.id)}>
+                <Text className={styles.photoEmptyIcon}>📷</Text>
+                <Text className={styles.photoEmptyText}>点击添加现场照片</Text>
+              </View>
+            </View>
+          )}
+
           {currentInspection.boundDevices && currentInspection.boundDevices.length > 0 && (
-            <View style={{ padding: '0 32rpx', marginBottom: '24rpx' }}>
-              <Text style={{ fontSize: '30rpx', fontWeight: 600, color: '#1d2129', marginBottom: '16rpx', display: 'block' }}>
+            <View className={styles.deviceSection}>
+              <Text className={styles.sectionTitle}>
                 已绑定设备 ({currentInspection.boundDevices.length})
               </Text>
               {currentInspection.boundDevices.map(device => (
-                <View key={device.id} style={{
-                  background: '#fff',
-                  borderRadius: '12rpx',
-                  padding: '20rpx 24rpx',
-                  marginBottom: '12rpx',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <View>
-                    <Text style={{ fontSize: '28rpx', color: '#1d2129', fontWeight: 500, display: 'block' }}>
-                      {device.deviceName}
-                    </Text>
-                    <Text style={{ fontSize: '24rpx', color: '#86909c', display: 'block', marginTop: '4rpx' }}>
+                <View key={device.id} className={styles.deviceCard}>
+                  <View className={styles.deviceInfo}>
+                    <Text className={styles.deviceName}>{device.deviceName}</Text>
+                    <Text className={styles.deviceDesc}>
                       编号：{device.deviceId} · {deviceTypeMap[device.deviceType] || '其他'}
                     </Text>
                     {device.remark && (
-                      <Text style={{ fontSize: '24rpx', color: '#86909c', display: 'block', marginTop: '4rpx' }}>
-                        备注：{device.remark}
-                      </Text>
+                      <Text className={styles.deviceRemark}>备注：{device.remark}</Text>
                     )}
+                    <Text className={styles.deviceTime}>绑定时间：{device.bindTime}</Text>
                   </View>
-                  <Text style={{ fontSize: '24rpx', color: '#00b42a' }}>✓ 已绑定</Text>
+                  {device.photoUrl && (
+                    <View className={styles.devicePhoto} onClick={() => previewPhoto(device.photoUrl!)}>
+                      <Image src={device.photoUrl} mode="aspectFill" />
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
           )}
 
-          <View className={styles.taskList}>
-            {currentInspection.tasks.map(task => (
-              <View key={task.id} className={styles.taskCard}>
-                <View className={styles.taskHeader}>
-                  <Text className={styles.taskTitle}>
-                    {task.required && <Text className={styles.required}>*</Text>}
-                    {task.title}
-                  </Text>
-                  <View className={classnames(styles.statusIcon, styles[task.status])}>
-                    {task.status === 'pending' ? '○' : task.status === 'pass' ? '✓' : '✗'}
-                  </View>
-                </View>
-                <View className={styles.taskContent}>{task.content}</View>
-
-                {task.status === 'pending' && (
-                  <View className={styles.taskActions}>
-                    <Button
-                      className={classnames(styles.taskBtn, styles.pass)}
-                      onClick={() => markTaskStatus(task.id, 'pass')}
-                    >
-                      正常
-                    </Button>
-                    <Button
-                      className={classnames(styles.taskBtn, styles.fail)}
-                      onClick={() => markTaskStatus(task.id, 'fail')}
-                    >
-                      异常
-                    </Button>
-                  </View>
-                )}
-
-                {(task.status === 'pass' || task.status === 'fail') && (
-                  <View className={styles.remarkSection}>
-                    <Text className={styles.remarkLabel}>
-                      {task.status === 'pass' ? '检查结果：正常' : '检查结果：异常'}
+          <View className={styles.taskSection}>
+            <Text className={styles.sectionTitle}>检查清单</Text>
+            <View className={styles.taskList}>
+              {currentInspection.tasks.map(task => (
+                <View key={task.id} className={styles.taskCard}>
+                  <View className={styles.taskHeader}>
+                    <Text className={styles.taskTitle}>
+                      {task.required && <Text className={styles.required}>*</Text>}
+                      {task.title}
                     </Text>
-                    {task.remark && <Text className={styles.remarkText}>{task.remark}</Text>}
-                    <View className={styles.photoPreview}>
-                      {task.photoUrl ? (
-                        <Image src={task.photoUrl} mode="aspectFill" />
-                      ) : (
-                        <Button
-                          className={classnames(styles.taskBtn, styles.photo)}
-                          style={{ width: '100%', height: '100%', borderRadius: '12rpx' }}
-                          onClick={() => handlePhoto(task.id)}
-                        >
-                          拍照
-                        </Button>
-                      )}
+                    <View className={classnames(styles.statusIcon, styles[task.status])}>
+                      {task.status === 'pending' ? '○' : task.status === 'pass' ? '✓' : '✗'}
                     </View>
                   </View>
-                )}
-              </View>
-            ))}
+                  <View className={styles.taskContent}>{task.content}</View>
+
+                  {task.status === 'pending' && (
+                    <View className={styles.taskActions}>
+                      <Button
+                        className={classnames(styles.taskBtn, styles.pass)}
+                        onClick={() => markTaskStatus(task.id, 'pass')}
+                      >
+                        正常
+                      </Button>
+                      <Button
+                        className={classnames(styles.taskBtn, styles.fail)}
+                        onClick={() => markTaskStatus(task.id, 'fail')}
+                      >
+                        异常
+                      </Button>
+                    </View>
+                  )}
+
+                  {(task.status === 'pass' || task.status === 'fail') && (
+                    <View className={styles.remarkSection}>
+                      <Text className={styles.remarkLabel}>
+                        {task.status === 'pass' ? '检查结果：正常' : '检查结果：异常'}
+                      </Text>
+                      {task.remark && <Text className={styles.remarkText}>{task.remark}</Text>}
+                      <View className={styles.taskPhotoWrap}>
+                        {task.photoUrl ? (
+                          <View className={styles.taskPhoto} onClick={() => previewPhoto(task.photoUrl!)}>
+                            <Image src={task.photoUrl} mode="aspectFill" />
+                          </View>
+                        ) : (
+                          <Button
+                            className={classnames(styles.taskBtn, styles.photo)}
+                            onClick={() => handlePhoto(task.id)}
+                          >
+                            📷 拍照记录
+                          </Button>
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
           </View>
         </ScrollView>
 
@@ -373,7 +518,7 @@ const InspectionPage: React.FC = () => {
           <View className={classnames(styles.actionIcon, styles.scan)}>⌖</View>
           <Text className={styles.actionLabel}>扫码绑定</Text>
         </View>
-        <View className={styles.actionCard} onClick={() => Taro.showToast({ title: '功能开发中', icon: 'none' })}>
+        <View className={styles.actionCard} onClick={handlePhotoEntry}>
           <View className={classnames(styles.actionIcon, styles.photo)}>📷</View>
           <Text className={styles.actionLabel}>现场照片</Text>
         </View>
@@ -387,11 +532,11 @@ const InspectionPage: React.FC = () => {
         onRefresherRefresh={handleRefresh}
         style={{ height: 'calc(100vh - 360rpx)' }}
       >
-        <Text className={styles.sectionTitle}>巡检任务</Text>
+        <Text className={styles.sectionTitleHeader}>巡检任务</Text>
 
         <View className={styles.inspectionList}>
           {inspections.map(item => (
-            <View key={item.id} className={styles.inspectionCard}>
+            <View key={item.id} className={styles.inspectionCard} onClick={() => startInspection(item)}>
               <View className={styles.cardHeader}>
                 <Text className={styles.cardTitle}>{item.title}</Text>
                 <StatusTag type={item.status} text={statusTextMap[item.status]} />
@@ -412,6 +557,22 @@ const InspectionPage: React.FC = () => {
                 </View>
               </View>
 
+              <View className={styles.cardPhotos}>
+                {item.photos && item.photos.length > 0 && (
+                  <>
+                    <Text className={styles.photoCountLabel}>📷 {item.photos.length}张照片</Text>
+                    <View className={styles.cardPhotoList}>
+                      {item.photos.slice(0, 3).map((photo, idx) => (
+                        <Image key={idx} src={photo} mode="aspectFill" className={styles.cardPhoto} />
+                      ))}
+                    </View>
+                  </>
+                )}
+                {item.boundDevices && item.boundDevices.length > 0 && (
+                  <Text className={styles.deviceCountLabel}>📱 绑定{item.boundDevices.length}台设备</Text>
+                )}
+              </View>
+
               <View className={styles.progressSection}>
                 <View className={styles.progressHeader}>
                   <Text className={styles.progressLabel}>完成进度</Text>
@@ -430,17 +591,17 @@ const InspectionPage: React.FC = () => {
                   {item.inspector ? `巡检员：${item.inspector}` : '待分配'}
                 </Text>
                 {item.status === 'pending' && (
-                  <Button className={styles.actionBtn} onClick={() => startInspection(item)}>
+                  <Button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); startInspection(item); }}>
                     开始巡检
                   </Button>
                 )}
                 {item.status === 'processing' && (
-                  <Button className={styles.actionBtn} onClick={() => startInspection(item)}>
+                  <Button className={styles.actionBtn} onClick={(e) => { e.stopPropagation(); startInspection(item); }}>
                     继续巡检
                   </Button>
                 )}
                 {item.status === 'completed' && (
-                  <Button className={classnames(styles.actionBtn, styles.secondary)} onClick={() => startInspection(item)}>
+                  <Button className={classnames(styles.actionBtn, styles.secondary)} onClick={(e) => { e.stopPropagation(); startInspection(item); }}>
                     查看详情
                   </Button>
                 )}
@@ -506,7 +667,7 @@ const InspectionPage: React.FC = () => {
               <View className={styles.timeInputRow}>
                 <Input
                   className={styles.dateInput}
-                  type="number"
+                  type="text"
                   placeholder="选择日期"
                   value={formData.planDate}
                   onInput={e => setFormData(prev => ({ ...prev, planDate: e.detail.value }))}
@@ -527,7 +688,7 @@ const InspectionPage: React.FC = () => {
                 />
                 <Input
                   className={styles.timeInput}
-                  type="number"
+                  type="text"
                   placeholder="09:00"
                   value={formData.planTime}
                   onInput={e => setFormData(prev => ({ ...prev, planTime: e.detail.value }))}
@@ -591,12 +752,33 @@ const InspectionPage: React.FC = () => {
             </View>
 
             <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>现场照片</Text>
+              <View className={styles.bindPhotoWrap}>
+                {bindForm.photoUrl ? (
+                  <View className={styles.bindPhotoPreview} onClick={() => previewPhoto(bindForm.photoUrl)}>
+                    <Image src={bindForm.photoUrl} mode="aspectFill" />
+                    <View className={styles.bindPhotoRemove} onClick={(e) => {
+                      e.stopPropagation();
+                      setBindForm(prev => ({ ...prev, photoUrl: '' }));
+                    }}>×</View>
+                  </View>
+                ) : (
+                  <View className={styles.bindPhotoUpload} onClick={handleBindDevicePhoto}>
+                    <Text className={styles.uploadIcon}>📷</Text>
+                    <Text className={styles.uploadText}>点击上传照片</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <View className={styles.formGroup}>
               <Text className={styles.formLabel}>备注</Text>
-              <Input
-                className={styles.formInput}
+              <Textarea
+                className={styles.formTextarea}
                 value={bindForm.remark}
                 placeholder="请输入备注信息（选填）"
                 onInput={e => setBindForm(prev => ({ ...prev, remark: e.detail.value }))}
+                maxlength={200}
               />
             </View>
 

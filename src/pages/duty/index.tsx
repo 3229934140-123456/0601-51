@@ -1,18 +1,18 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, Button, Input } from '@tarojs/components';
+import { View, Text, ScrollView, Button, Input, Textarea } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import classnames from 'classnames';
 import type { DutyRecord, HandoverItem } from '@/types';
 import { useAppStore } from '@/store';
-import { dutyList } from '@/data/duty';
+import { generateMonthDutyList } from '@/data/duty';
 import StatusTag from '@/components/StatusTag';
 import styles from './index.module.scss';
 
 const DutyPage: React.FC = () => {
   const { handovers, addHandover, completeHandover } = useAppStore();
   const [activeTab, setActiveTab] = useState<'schedule' | 'handover'>('schedule');
-  const [dutyRecords] = useState<DutyRecord[]>(dutyList);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -26,6 +26,12 @@ const DutyPage: React.FC = () => {
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
+  const monthDutyList = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    return generateMonthDutyList(year, month);
+  }, [currentMonth]);
+
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     setTimeout(() => {
@@ -35,9 +41,14 @@ const DutyPage: React.FC = () => {
   }, []);
 
   const currentDuty = useMemo(() => {
-    const todayDuties = dutyRecords.filter(d => d.date === todayStr);
+    const todayDuties = monthDutyList.filter(d => d.date === todayStr);
     return todayDuties;
-  }, [dutyRecords, todayStr]);
+  }, [monthDutyList, todayStr]);
+
+  const displayDate = selectedDate || todayStr;
+  const selectedDuty = useMemo(() => {
+    return monthDutyList.filter(d => d.date === displayDate);
+  }, [monthDutyList, displayDate]);
 
   const calendarDays = useMemo(() => {
     const year = currentMonth.getFullYear();
@@ -60,7 +71,7 @@ const DutyPage: React.FC = () => {
 
   const getDutyForDate = (day: number) => {
     const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return dutyRecords.filter(d => d.date === dateStr);
+    return monthDutyList.filter(d => d.date === dateStr);
   };
 
   const handlePrevMonth = () => {
@@ -69,6 +80,11 @@ const DutyPage: React.FC = () => {
 
   const handleNextMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+  const handleDateSelect = (day: number) => {
+    const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    setSelectedDate(dateStr);
   };
 
   const markHandoverDone = (id: string) => {
@@ -126,8 +142,28 @@ const DutyPage: React.FC = () => {
     { value: 'lisi', label: '李四' },
     { value: 'wangwu', label: '王五' },
     { value: 'zhaoliu', label: '赵六' },
-    { value: 'sunqi', label: '孙七' }
+    { value: 'sunqi', label: '孙七' },
+    { value: 'zhouba', label: '周八' },
+    { value: 'wujiu', label: '吴九' },
+    { value: 'zhengshi', label: '郑十' }
   ];
+
+  const monthListDays = useMemo(() => {
+    const uniqueDates = Array.from(new Set(monthDutyList.map(d => d.date))).sort();
+    return uniqueDates.map(date => {
+      const dayDuties = monthDutyList.filter(d => d.date === date);
+      return { date, duties: dayDuties };
+    });
+  }, [monthDutyList]);
+
+  const formatDateLabel = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    return `${d.getMonth() + 1}月${d.getDate()}日 ${weekdays[d.getDay()]}`;
+  };
+
+  const isToday = (dateStr: string) => dateStr === todayStr;
+  const isSelected = (dateStr: string) => dateStr === displayDate;
 
   return (
     <View className={styles.pageContainer}>
@@ -160,10 +196,13 @@ const DutyPage: React.FC = () => {
           {activeTab === 'schedule' && (
             <>
               <View className={styles.currentDuty}>
-                <Text className={styles.dutyLabel}>今日值班</Text>
-                {currentDuty.length > 0 ? (
+                <Text className={styles.dutyLabel}>
+                  {selectedDate ? formatDateLabel(selectedDate) + ' 值班' : '今日值班'}
+                  {!selectedDate && <Text className={styles.todayBadge}>今天</Text>}
+                </Text>
+                {selectedDuty.length > 0 ? (
                   <View className={styles.dutyCards}>
-                    {currentDuty.map(duty => (
+                    {selectedDuty.map(duty => (
                       <View key={duty.id} className={styles.dutyInfo}>
                         <View className={styles.dutyPerson}>
                           <View className={classnames(styles.avatar, { [styles.night]: duty.shift === '夜班' })}>
@@ -190,10 +229,6 @@ const DutyPage: React.FC = () => {
                 )}
               </View>
 
-              <Text className={styles.sectionTitle}>
-                <Text className={styles.titleLeft}>排班日历</Text>
-              </Text>
-
               <View className={styles.dutyCalendar}>
                 <View className={styles.calendarHeader}>
                   <View className={styles.navBtn} onClick={handlePrevMonth}>‹</View>
@@ -212,24 +247,31 @@ const DutyPage: React.FC = () => {
                     if (day === null) {
                       return <View key={index} className={classnames(styles.dayCell, styles.empty)} />;
                     }
-                    const isToday = day === today.getDate() && currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear();
+                    const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     const dayDuties = getDutyForDate(day);
                     const hasDuty = dayDuties.length > 0;
                     const dayShift = dayDuties.find(d => d.shift === '白班');
+                    const nightShift = dayDuties.find(d => d.shift === '夜班');
+                    const todayFlag = isToday(dateStr);
+                    const selectedFlag = isSelected(dateStr);
 
                     return (
                       <View
                         key={index}
                         className={classnames(styles.dayCell, {
-                          [styles.today]: isToday,
+                          [styles.today]: todayFlag,
+                          [styles.selected]: selectedFlag,
                           [styles.hasDuty]: hasDuty
                         })}
+                        onClick={() => handleDateSelect(day)}
                       >
                         <Text className={styles.dayNum}>{day}</Text>
-                        {dayShift && (
-                          <Text className={styles.dutyName}>{dayShift.name.charAt(0)}</Text>
+                        {hasDuty && (
+                          <View className={styles.dayDutyNames}>
+                            <Text className={styles.dutyInitial}>{dayShift?.name.charAt(0)}</Text>
+                            <Text className={styles.dutyInitial}>{nightShift?.name.charAt(0)}</Text>
+                          </View>
                         )}
-                        {hasDuty && <View className={styles.dutyDot} />}
                       </View>
                     );
                   })}
@@ -237,30 +279,28 @@ const DutyPage: React.FC = () => {
               </View>
 
               <Text className={styles.sectionTitle}>
-                <Text className={styles.titleLeft}>本周排班</Text>
-                <Text className={styles.more}>查看全部</Text>
+                <Text className={styles.titleLeft}>当月排班</Text>
+                <Text className={styles.more}>{monthListDays.length}天</Text>
               </Text>
 
               <View className={styles.dutyList}>
-                {dutyRecords.slice(0, 14).filter((_, i) => i % 2 === 0).map((record, index, arr) => {
-                  const sameDateItems = dutyRecords.filter(r => r.date === record.date);
-
-                  const dayShift = sameDateItems.find(r => r.shift === '白班');
-                  const nightShift = sameDateItems.find(r => r.shift === '夜班');
-                  const date = new Date(record.date);
-                  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-                  const isTodayDate = record.date === todayStr;
+                {monthListDays.map(({ date, duties }) => {
+                  const dayShift = duties.find(r => r.shift === '白班');
+                  const nightShift = duties.find(r => r.shift === '夜班');
+                  const todayFlag = isToday(date);
 
                   return (
                     <View
-                      key={record.date}
-                      className={classnames(styles.dutyItem, { [styles.todayItem]: isTodayDate })}
+                      key={date}
+                      className={classnames(styles.dutyItem, { [styles.todayItem]: todayFlag })}
                     >
                       <View className={styles.dateInfo}>
-                        <Text className={styles.date}>{date.getDate()}</Text>
+                        <Text className={styles.date}>
+                          {new Date(date).getDate()}
+                        </Text>
                         <Text className={styles.weekday}>
-                          {weekdays[date.getDay()]}
-                          {isTodayDate && ' (今天)'}
+                          {formatDateLabel(date).split(' ')[1]}
+                          {todayFlag && ' (今天)'}
                         </Text>
                       </View>
                       <View className={styles.shiftInfo}>
@@ -367,11 +407,12 @@ const DutyPage: React.FC = () => {
 
             <View className={styles.formGroup}>
               <Text className={styles.formLabel}>内容</Text>
-              <Input
-                className={classnames(styles.formInput, styles.textarea)}
+              <Textarea
+                className={styles.formTextarea}
                 value={formData.content}
                 placeholder="请输入详细内容"
                 onInput={e => setFormData(prev => ({ ...prev, content: e.detail.value }))}
+                maxlength={500}
               />
             </View>
 

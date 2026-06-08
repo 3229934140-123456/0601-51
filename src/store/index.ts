@@ -26,13 +26,14 @@ interface AppState {
   services: ServiceItem[];
 
   confirmAlert: (alertId: string, content: string) => void;
-  transferAlert: (alertId: string, transferToName: string) => void;
+  transferAlert: (alertId: string, transferToName: string, content?: string) => void;
   resolveAlert: (alertId: string, content: string) => void;
   addProcessRecord: (alertId: string, record: ProcessRecord) => void;
 
   createInspection: (inspection: InspectionItem) => void;
   updateInspectionTask: (inspectionId: string, taskId: string, updates: Partial<InspectionItem['tasks'][0]>) => void;
   bindDevice: (inspectionId: string, device: BoundDevice) => void;
+  addInspectionPhoto: (inspectionId: string, photoUrl: string) => void;
   completeInspection: (inspectionId: string) => void;
 
   addHandover: (item: HandoverItem) => void;
@@ -101,7 +102,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log('[Store] 确认告警:', alertId);
   },
 
-  transferAlert: (alertId, transferToName) => {
+  transferAlert: (alertId, transferToName, content = '') => {
     const now = formatTime(new Date());
     const record: ProcessRecord = {
       id: generateId(),
@@ -110,7 +111,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       operatorName: '我',
       time: now,
       transferTo: transferToName.toLowerCase(),
-      transferToName
+      transferToName,
+      content
     };
 
     set(state => ({
@@ -190,7 +192,18 @@ export const useAppStore = create<AppState>((set, get) => ({
           : ins
       )
     }));
-    console.log('[Store] 绑定设备:', device.name, '到巡检', inspectionId);
+    console.log('[Store] 绑定设备:', device.deviceName, '到巡检', inspectionId);
+  },
+
+  addInspectionPhoto: (inspectionId, photoUrl) => {
+    set(state => ({
+      inspections: state.inspections.map(ins =>
+        ins.id === inspectionId
+          ? { ...ins, photos: [...ins.photos, photoUrl] }
+          : ins
+      )
+    }));
+    console.log('[Store] 添加巡检照片:', inspectionId);
   },
 
   completeInspection: (inspectionId) => {

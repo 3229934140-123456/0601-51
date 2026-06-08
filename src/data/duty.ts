@@ -18,16 +18,25 @@ const dutyPeople = [
   { name: '郑十', phone: '132****9012', id: 'zhengshi' }
 ];
 
+const BASE_DATE = new Date(2026, 0, 1);
+const BASE_DAY_IDX = 0;
+
+function getDayIndex(date: Date): number {
+  const timeDiff = date.getTime() - BASE_DATE.getTime();
+  const dayDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+  return (dayDiff + BASE_DAY_IDX + 1000) % dutyPeople.length;
+}
+
 function generateDutyList(days: number = 14): DutyRecord[] {
   const list: DutyRecord[] = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(today.getTime() + (i - 1) * 86400000);
     const dateStr = fmtDate(d);
-    const dayIdx = (i - 1 + 30) % 8;
+    const dayIdx = getDayIndex(d);
     const dayPerson = dutyPeople[dayIdx % 8];
     const nightPerson = dutyPeople[(dayIdx + 1) % 8];
     list.push({
-      id: `d${String(i * 2).padStart(3, '0')}`,
+      id: `d${dateStr}-day`,
       date: dateStr,
       shift: '白班',
       name: dayPerson.name,
@@ -35,7 +44,36 @@ function generateDutyList(days: number = 14): DutyRecord[] {
       userId: dayPerson.id
     });
     list.push({
-      id: `d${String(i * 2 + 1).padStart(3, '0')}`,
+      id: `d${dateStr}-night`,
+      date: dateStr,
+      shift: '夜班',
+      name: nightPerson.name,
+      phone: nightPerson.phone,
+      userId: nightPerson.id
+    });
+  }
+  return list;
+}
+
+export function generateMonthDutyList(year: number, month: number): DutyRecord[] {
+  const list: DutyRecord[] = [];
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let i = 1; i <= daysInMonth; i++) {
+    const d = new Date(year, month, i);
+    const dateStr = fmtDate(d);
+    const dayIdx = getDayIndex(d);
+    const dayPerson = dutyPeople[dayIdx % 8];
+    const nightPerson = dutyPeople[(dayIdx + 1) % 8];
+    list.push({
+      id: `d${dateStr}-day`,
+      date: dateStr,
+      shift: '白班',
+      name: dayPerson.name,
+      phone: dayPerson.phone,
+      userId: dayPerson.id
+    });
+    list.push({
+      id: `d${dateStr}-night`,
       date: dateStr,
       shift: '夜班',
       name: nightPerson.name,

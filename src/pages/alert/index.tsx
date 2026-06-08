@@ -24,6 +24,7 @@ const AlertPage: React.FC = () => {
   const [showDetail, setShowDetail] = useState(false);
   const [currentAlert, setCurrentAlert] = useState<AlertItem | null>(null);
   const [processRecord, setProcessRecord] = useState('');
+  const [transferRemark, setTransferRemark] = useState('');
   const [selectedPerson, setSelectedPerson] = useState('');
   const [processType, setProcessType] = useState<'confirm' | 'resolve'>('confirm');
 
@@ -70,6 +71,7 @@ const AlertPage: React.FC = () => {
     if (!alert) return;
     setCurrentAlert(alert);
     setSelectedPerson('');
+    setTransferRemark('');
     setShowTransferModal(true);
   };
 
@@ -83,7 +85,8 @@ const AlertPage: React.FC = () => {
   };
 
   const handleViewDetail = (alert: AlertItem) => {
-    setCurrentAlert(alert);
+    const freshAlert = alerts.find(a => a.id === alert.id);
+    setCurrentAlert(freshAlert || alert);
     setShowDetail(true);
   };
 
@@ -107,7 +110,7 @@ const AlertPage: React.FC = () => {
       Taro.showToast({ title: '请选择转派人', icon: 'none' });
       return;
     }
-    transferAlert(currentAlert.id, selectedPerson);
+    transferAlert(currentAlert.id, selectedPerson, transferRemark);
     setShowTransferModal(false);
     setCurrentAlert(null);
     Taro.showToast({ title: '转派成功', icon: 'success' });
@@ -129,7 +132,12 @@ const AlertPage: React.FC = () => {
   const bizLabelMap: Record<string, string> = {};
   bizOptions.forEach(opt => { bizLabelMap[opt.value] = opt.label; });
 
-  if (showDetail && currentAlert) {
+  const detailAlert = useMemo(() => {
+    if (!currentAlert) return null;
+    return alerts.find(a => a.id === currentAlert.id) || currentAlert;
+  }, [alerts, currentAlert]);
+
+  if (showDetail && detailAlert) {
     return (
       <View className={classnames(styles.pageContainer, styles.detailPage)}>
         <ScrollView scrollY style={{ height: '100vh', paddingBottom: '40rpx' }}>
@@ -143,48 +151,48 @@ const AlertPage: React.FC = () => {
 
           <View className={styles.alertDetailCard}>
             <View className={styles.alertTitleRow}>
-              <StatusTag type={currentAlert.level.toLowerCase()} text={currentAlert.level} />
-              <Text className={styles.alertTitle}>{currentAlert.title}</Text>
+              <StatusTag type={detailAlert.level.toLowerCase()} text={detailAlert.level} />
+              <Text className={styles.alertTitle}>{detailAlert.title}</Text>
             </View>
             <View className={styles.alertMeta}>
               <View className={styles.metaItem}>
                 <Text className={styles.metaLabel}>主机：</Text>
-                <Text className={styles.metaValue}>{currentAlert.hostName}</Text>
+                <Text className={styles.metaValue}>{detailAlert.hostName}</Text>
               </View>
               <View className={styles.metaItem}>
                 <Text className={styles.metaLabel}>服务：</Text>
-                <Text className={styles.metaValue}>{currentAlert.serviceName}</Text>
+                <Text className={styles.metaValue}>{detailAlert.serviceName}</Text>
               </View>
               <View className={styles.metaItem}>
                 <Text className={styles.metaLabel}>机房：</Text>
-                <Text className={styles.metaValue}>{currentAlert.idc}</Text>
+                <Text className={styles.metaValue}>{detailAlert.idc}</Text>
               </View>
               <View className={styles.metaItem}>
                 <Text className={styles.metaLabel}>业务：</Text>
-                <Text className={styles.metaValue}>{currentAlert.biz}</Text>
+                <Text className={styles.metaValue}>{detailAlert.biz}</Text>
               </View>
               <View className={styles.metaItem}>
                 <Text className={styles.metaLabel}>创建时间：</Text>
-                <Text className={styles.metaValue}>{currentAlert.createTime}</Text>
+                <Text className={styles.metaValue}>{detailAlert.createTime}</Text>
               </View>
-              {currentAlert.handlerName && (
+              {detailAlert.handlerName && (
                 <View className={styles.metaItem}>
                   <Text className={styles.metaLabel}>处理人：</Text>
-                  <Text className={styles.metaValue}>{currentAlert.handlerName}</Text>
+                  <Text className={styles.metaValue}>{detailAlert.handlerName}</Text>
                 </View>
               )}
             </View>
             <View className={styles.alertContent}>
               <Text className={styles.contentLabel}>告警描述</Text>
-              <Text className={styles.contentText}>{currentAlert.content}</Text>
+              <Text className={styles.contentText}>{detailAlert.content}</Text>
             </View>
           </View>
 
           <View className={styles.timelineSection}>
             <Text className={styles.sectionTitle}>处理时间线</Text>
-            {currentAlert.processRecords && currentAlert.processRecords.length > 0 ? (
+            {detailAlert.processRecords && detailAlert.processRecords.length > 0 ? (
               <View className={styles.timeline}>
-                {currentAlert.processRecords.map((record, index) => (
+                {detailAlert.processRecords.map((record, index) => (
                   <View key={record.id} className={styles.timelineItem}>
                     <View className={classnames(styles.timelineDot, { [styles.first]: index === 0 })} />
                     <View className={styles.timelineContent}>
@@ -210,18 +218,18 @@ const AlertPage: React.FC = () => {
             )}
           </View>
 
-          {(currentAlert.status === 'pending' || currentAlert.status === 'confirmed' || currentAlert.status === 'processing') && (
+          {(detailAlert.status === 'pending' || detailAlert.status === 'confirmed' || detailAlert.status === 'processing') && (
             <View className={styles.detailActions}>
-              {currentAlert.status === 'pending' && (
-                <Button className={styles.actionPrimary} onClick={() => handleConfirm(currentAlert.id)}>
+              {detailAlert.status === 'pending' && (
+                <Button className={styles.actionPrimary} onClick={() => handleConfirm(detailAlert.id)}>
                   确认告警
                 </Button>
               )}
-              <Button className={styles.actionSecondary} onClick={() => handleTransfer(currentAlert.id)}>
+              <Button className={styles.actionSecondary} onClick={() => handleTransfer(detailAlert.id)}>
                 转派告警
               </Button>
-              {(currentAlert.status === 'confirmed' || currentAlert.status === 'processing') && (
-                <Button className={styles.actionSuccess} onClick={() => handleResolve(currentAlert.id)}>
+              {(detailAlert.status === 'confirmed' || detailAlert.status === 'processing') && (
+                <Button className={styles.actionSuccess} onClick={() => handleResolve(detailAlert.id)}>
                   标记解决
                 </Button>
               )}
@@ -285,6 +293,17 @@ const AlertPage: React.FC = () => {
                     </View>
                   ))}
                 </View>
+              </View>
+
+              <View className={styles.formGroup}>
+                <Text className={styles.formLabel}>转派说明</Text>
+                <Textarea
+                  className={styles.formTextarea}
+                  placeholder="请输入转派说明（选填）"
+                  value={transferRemark}
+                  onInput={e => setTransferRemark(e.detail.value)}
+                  maxlength={500}
+                />
               </View>
 
               <View className={styles.modalActions}>
